@@ -1,6 +1,6 @@
 {
   "name": "sigfox-gcloud",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "Framework for building a Sigfox server, based on Google Cloud Functions",
   "main": "index.js",
   "scripts": {
