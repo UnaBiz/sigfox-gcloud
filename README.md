@@ -12,7 +12,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
   crashing will not affect others. Google Cloud PubSub message
   queues are used to pass the Sigfox messages reliably between processing modules.
 
-##Getting Started
+## Getting Started
 
 1. Download this source folder to your computer.  For development
    we support Linux, MacOS and Ubuntu on Windows 10.
@@ -171,6 +171,8 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 1.  We may configure Google Cloud StackDriver Monitoring to create incident
     reports upon detecting any errors.  StackDriver may also be used to
     generate dashboards for monitoring the PubSub message processing queues.
+
+##  Demo    
     
 1. The sample code calls the `logToGoogleSheets` Cloud Function to display
    Sigfox messages in a Google Sheets spreadsheet in real time.
@@ -233,3 +235,36 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
       lig (light level): 760
       tmp (temperature): 29        
       ```
+
+## Creating a Sigfox message processing module
+
+1. Create a Google Cloud Function, using `decodeStructuredMessage` as a template:
+
+    ```bash
+    mkdir myfunction
+    cp decodeStructuredMessage/index.js myfunction
+    cp decodeStructuredMessage/package.json myfunction
+    cp decodeStructuredMessage/deploy.sh myfunction
+    cd myfunction
+    ```
+
+1. Install `sigfox-gcloud`
+
+    ```bash
+    npm install --save sigfox-gcloud
+    ```
+
+1. Configure the Google PubSub message queue to be listened in `deploy.sh`
+
+1. Create the queues in Google PubSub Console
+
+1. Deploy the module
+ 
+    ```bash
+    ./deploy.sh
+    ```
+
+1. Update the Sigfox message processing routes in `routeMessage/routes.js`
+
+1. Send a Sigfox message to test
+
