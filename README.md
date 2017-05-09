@@ -148,6 +148,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
     Sigfox Cloud
     
+<<<<<<< HEAD
     ▶️ [`sigfoxCallback` cloud function](https://github.com/UnaBiz/sigfox-gcloud/tree/master/sigfoxCallback)
       to ingest messages from Sigfox Cloud
           
@@ -163,6 +164,21 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     ▶️ `sigfox.types.logToGoogleSheets` message queue
     
     ▶️ [`logToGoogleSheets` cloud function](https://github.com/UnaBiz/sigfox-gcloud/tree/master/logToGoogleSheets) to write the decoded message to Google Sheets
+=======
+    ▶️ `sigfoxCallback` cloud function
+    
+    ▶️ `sigfox.devices.all` message queue
+    
+    ▶️ `routeMessage` cloud function to route the message
+    
+    ▶️ `sigfox.types.decodeStructuredMessage` message queue 
+
+    ▶️ `decodeStructuredMessage` cloud function to decode the message
+    
+    ▶️ `sigfox.types.logToGoogleSheets` message queue
+    
+    ▶️ `logToGoogleSheets` cloud function to write the message to Google Sheets
+>>>>>>> origin/master
 
     <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg" width="1024">
 
@@ -174,6 +190,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     - Cloud Function `sigfoxCallback` delivers the message to PubSub message queue
       `sigfox.devices.all`, as well as to the device ID and device type queues
     
+<<<<<<< HEAD
     - Cloud Function 
       [`routeMessage`](https://github.com/UnaBiz/sigfox-gcloud/tree/master/routeMessage)
       listens to PubSub message queue 
@@ -182,6 +199,16 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     - Cloud Function `routeMessage` assigns a route to the 
       Sigfox message using a rule like this: 
       (see [`routeMessage/routes.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/routeMessage/routes.js))
+=======
+    - Cloud Function `sigfoxCallback` delivers the message to PubSub message queue
+      `sigfox.devices.all`, and also to the device ID and device type queues
+    
+    - Cloud Function `routeMessage` listens to PubSub message queue 
+      `sigfox.devices.all` and picks up the new message
+    
+    - Cloud Function `routeMessage` assign a route to the 
+      Sigfox message using a rule like this: (see `routeMessage/routes.js`)
+>>>>>>> origin/master
 
     ```javascript
     //  Each element of this array maps device IDs to route
