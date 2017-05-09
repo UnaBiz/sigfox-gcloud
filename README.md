@@ -24,13 +24,34 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     cd sigfox-gcloud
     ```
 
-1. Create a Google Cloud Project. Assume the project ID is `myproject`
+1. Create a Google Cloud Platform project. Assume the project ID is `myproject`.
 
+    [*GO TO THE PROJECTS PAGE*](https://console.cloud.google.com/project?_ga=1.185886880.864313361.1477837820)
+    
 1. Create a file `.env` file in the `sigfox-gcloud` folder.  Edit the file
    and populate the `GCLOUD_PROJECT` variable with your project ID like this:
 
     ```bash
     GCLOUD_PROJECT=myproject
+    ```
+
+1. Enable billing for your project.
+
+    [*ENABLE BILLING*](https://support.google.com/cloud/answer/6293499#enable-billing)
+
+1. Enable the Cloud Functions and Cloud Pub/Sub APIs.
+
+    [*ENABLE THE APIS*](https://console.cloud.google.com/flows/enableapi?apiid=cloudfunctions,pubsub&redirect=https://cloud.google.com/functions/docs/tutorials/pubsub&_ga=1.149082047.864313361.1477837820)
+
+1. Install and initialize the Google Cloud SDK.
+
+    [*GOOGLE CLOUD SDK*](https://cloud.google.com/sdk/docs/)
+
+1. Update and install `gcloud` components:
+
+    ```bash
+    gcloud components update &&
+    gcloud components install beta
     ```
 
 1. Create a Google Cloud Service Account and download the JSON credentials
@@ -57,14 +78,13 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     sigfox.types.logToGoogleSheets
     ```
 
-1. Create a Google Cloud Storage bucket for deployment:
+1. Create a Google Cloud Storage bucket `myproject.appspot.com` to stage our Cloud Functions files during deployment:    
+   
+    ```javascript
+    gsutil mb gs://myproject.appspot.com
+    ```
 
-    `<projectid>.appspot.com`
-
-    e.g. `myproject.appspot.com`
-
-1. Install Google Cloud SDK and the command line interface.  
-    Deploy all the included Cloud Functions with the script
+1. Deploy all the included Cloud Functions with the script:
 
     ```bash
     scripts/deployall.sh  
