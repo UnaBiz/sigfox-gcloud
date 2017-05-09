@@ -1,0 +1,25 @@
+{
+  "name": "sigfoxCallback",
+  "version": "0.0.1",
+  "author": {
+    "name": "Lee Lup Yuen",
+    "email": "ly.lee@unabiz.com",
+    "url": "http://github.com/unabiz/"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=6.7.0"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "^0.9.3",
+    "@google-cloud/debug-agent": "^1.0.0",
+    "@google-cloud/error-reporting": "^0.1.1",
+    "@google-cloud/logging": "^1.0.0",
+    "@google-cloud/trace-agent": "^1.1.0",
+    "@google-cloud/pubsub": "0.10.0",
+    "safe-buffer": "5.0.1",
+    "uuid": "^3.0.1",
+    "node-fetch": "^1.6.3",
+    "json-stringify-safe": "^5.0.1"
+  }
+}

@@ -1,0 +1,9 @@
+.idea
+**/.env
+**/google-credentials.json
+**/yarn.lock
+**/node_modules
+**/database.sqlite
+**/ncp-debug.log
+**/npm-debug.log
+**/*.all.js
