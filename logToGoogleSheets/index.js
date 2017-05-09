@@ -14,10 +14,8 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/trace-agent').start();
   require('@google-cloud/debug-agent').start();
 }
-const sigfoxgcloud = require('../index');
-const googlesheets = require('../lib/googlesheets');
-// const sigfoxgcloud = require('sigfoxgcloud');  //  Eventually
-// const googlesheets = require('sigfoxgcloud/lib/googlesheets');  //  Eventually
+const sigfoxgcloud = require('sigfox-gcloud');
+const googlesheets = require('sigfox-gcloud/lib/googlesheets');
 
 //  Upon startup, get a Google API token for Google Drive and Sheets access.
 googlesheets.getGoogleAuth({});

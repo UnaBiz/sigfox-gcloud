@@ -15,8 +15,7 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/trace-agent').start();
   require('@google-cloud/debug-agent').start();
 }
-const sigfoxgcloud = require('../index');
-// const sigfoxgcloud = require('sigfoxgcloud');  //  Eventually
+const sigfoxgcloud = require('sigfox-gcloud');
 
 const firstLetter = 1;
 const firstDigit = 27;

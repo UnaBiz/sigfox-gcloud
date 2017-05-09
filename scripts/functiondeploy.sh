@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Set the GCLOUD_PROJECT environment variable from .env
+export GCLOUD_PROJECT
+. .env
+
 name=$1
 localpath=$2
 trigger=$3

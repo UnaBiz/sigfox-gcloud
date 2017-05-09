@@ -20,8 +20,7 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/debug-agent').start();
 }
 const uuid = require('uuid');
-const sigfoxgcloud = require('../index');
-// const sigfoxgcloud = require('sigfoxgcloud');  //  Eventually
+const sigfoxgcloud = require('sigfox-gcloud');
 
 function getResponse(device) {
   //  Return the standard callback response to Sigfox Cloud, which
