@@ -34,5 +34,14 @@
     "json-stringify-safe": "^5.0.1",
     "node-fetch": "^1.6.3",
     "safe-buffer": "5.0.1"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UnaBiz/sigfox-gcloud.git"
+  },
+  "bugs": {
+    "url": "https://github.com/UnaBiz/sigfox-gcloud/issues"
+  },
+  "homepage": "https://github.com/UnaBiz/sigfox-gcloud#readme"
 }
