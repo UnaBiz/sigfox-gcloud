@@ -19,11 +19,13 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
     ```bash
     git clone https://github.com/UnaBiz/sigfox-gcloud.git
+    cd sigfox-gcloud
     ```
 
 1. Create a Google Cloud Project. Assume the project ID is `myproject`
 
-1. Set the `GCLOUD_PROJECT` variable in `.env` file in the `sigfox-gcloud` folder
+1. Create a file `.env` file in the `sigfox-gcloud` folder.  Edit the file
+   and populate the `GCLOUD_PROJECT` variable with your project ID like this:
 
     ```bash
     GCLOUD_PROJECT=myproject
@@ -112,18 +114,39 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     [ decodeStructuredMessage, logToGoogleSheets, ... ]
     ```
     in which `decodeStructuredMessage` and `logToGoogleSheets` are the Google Cloud Functions to be called sequentially.
-    These Cloud Functions will subscribe to these Google PubSub queues to listen for Sigfox messages:
+    These Cloud Functions will subscribe to the following Google PubSub queues to listen for Sigfox messages:
     
     ```
     sigfox.types.decodeStructuredMessage
     sigfox.types.logToGoogleSheets
     ```
 
-1.  Here is an example of a route for Sigfox message processing.
-    Sigfox messages are pushed by the Sigfox Cloud to the Google Cloud Function
-    `sigfoxCallback`, which are then delivered to the Cloud Function
-    `routeMessage` via PubSub message queues.  `routeMessage` will
-    assign a route to the Sigfox message using a rule like this:
+1.  Here is an example of a route for Sigfox message processing, as shown in the demo.
+
+    Sigfox Cloud
+    
+    --> `sigfoxCallback` function
+    
+    --> `sigfox.devices.all` queue
+    
+    --> `routeMessage` function to route the message
+    
+    --> `sigfox.types.decodeStructuredMessage` queue 
+
+    --> `decodeStructuredMessage` function to decode the message
+    
+    --> `sigfox.types.logToGoogleSheets` queue
+    
+    --> `logToGoogleSheets` function to write the message to Google Sheets
+
+    - Sigfox messages are pushed by the Sigfox Cloud to the Google Cloud Function
+    `sigfoxCallback`
+    
+    - The Sigfox messages are delivered to the Cloud Function
+    `routeMessage` via PubSub message queue `sigfox.devices.all`
+    
+    - Cloud Function `routeMessage` will assign a route to the 
+      Sigfox message using a rule like this:
 
     ```javascript
     //  Each element of this array maps device IDs to route
@@ -157,6 +180,9 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
       //  Add your device IDs -> route here.
     ];
     ```
+    
+    - This will route the message to functions `decodeStructuredMessage` and `logToGoogleSheets`
+      via the queues `sigfox.types.decodeStructuredMessage` and `sigfox.types.logToGoogleSheets`
 
 1.  See this for the definition of structured messages:
 
@@ -174,67 +200,73 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
 ##  Demo    
     
-1. The sample code calls the `logToGoogleSheets` Cloud Function to display
+1. The sample code calls the `decodeStructuredMessage` Cloud Function to decode a structured
+   Sigfox message containing encoded sensor data (counter, light level, temperature). 
+    Then it calls the `logToGoogleSheets` Cloud Function to display the decoded
    Sigfox messages in a Google Sheets spreadsheet in real time.
    
-   - Ensure that the Google Service Account in `google-credentials.json`
-     has been granted these permission scopes for Sheets API, Drive API:
-                      
-      ```
-      https://www.googleapis.com/auth/spreadsheets
-      https://www.googleapis.com/auth/drive
-      ```
-    
-    - Create a folder in Google Drive and grant write access to the email
-      address specified in `google-credentials.json`.
-    
-    - In that folder, create a Google Sheets spreadsheet with the device ID (in uppercase)
-      as the filename, e.g. `1A2345`.  Omit any file extensions like `.xls`
-    
-    - In the spreadsheet, rename the first tab / worksheet as `Log`.
-    
-    - Populate the first row with these column headers, one name per column:
-      ```
-      timestamp+8
-      data
-      ctr
-      lig
-      tmp
-      seqNumberCheck
-      rssi
-      duplicate
-      snr
-      station
-      avgSnr
-      lat
-      lng
-      ack
-      longPolling
-      time
-      seqNumber
-      type
-      device
-      ```
-    
-    - Change `timestamp+8` to indicate your time zone, e.g. for UTC+10 change it to `timestamp+10`
-    
-    - Refer to the sample Google Sheet here:
-    
-      `https://docs.google.com/spreadsheets/d/1OtlfVx6kibMxnZoSwq76Vod8HhaK5tzBIBAewtZlbXM/edit?usp=sharing`
-    
-    - To test the structured message decoding, pass this as the `data` field of the Sigfox message:
-    
-      ```
-      920e82002731b01db0512201
-      ```
-          
-    - This will be decoded as 
-    
-      ```
-      ctr (counter): 13
-      lig (light level): 760
-      tmp (temperature): 29        
-      ```
+    See this for the definition of structured messages:
+   
+       https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
+   
+1. Ensure that the Google Service Account in `google-credentials.json`
+ has been granted these permission scopes for Sheets API, Drive API:
+                  
+    ```
+    https://www.googleapis.com/auth/spreadsheets
+    https://www.googleapis.com/auth/drive
+    ```
+
+1. Create a folder in Google Drive and grant write access to the email
+  address specified in `google-credentials.json`.
+
+1. In that folder, create a Google Sheets spreadsheet with the device ID (in uppercase)
+  as the filename, e.g. `1A2345`.  Omit any file extensions like `.xls`
+
+1. In the spreadsheet, rename the first tab / worksheet as `Log`.
+
+1. Populate the first row with these column headers, one name per column:
+    ```
+    timestamp+8
+    data
+    ctr
+    lig
+    tmp
+    seqNumberCheck
+    rssi
+    duplicate
+    snr
+    station
+    avgSnr
+    lat
+    lng
+    ack
+    longPolling
+    time
+    seqNumber
+    type
+    device
+    ```
+
+1. Change `timestamp+8` to indicate your time zone, e.g. for UTC+10 change it to `timestamp+10`
+
+1. Refer to the sample Google Sheet here:
+
+  `https://docs.google.com/spreadsheets/d/1OtlfVx6kibMxnZoSwq76Vod8HhaK5tzBIBAewtZlbXM/edit?usp=sharing`
+
+1. To test the structured message decoding, pass this as the `data` field of the Sigfox message:
+
+  ```
+  920e82002731b01db0512201
+  ```
+      
+1. This will be decoded as 
+
+  ```
+  ctr (counter): 13
+  lig (light level): 760
+  tmp (temperature): 29        
+  ```
 
 ## Creating a Sigfox message processing module
 
