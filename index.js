@@ -16,8 +16,8 @@ const isCloudFunc = !!functionName;  //  True if running in Google Cloud Functio
 
 //  Assume that the Google Service Account credentials are present in this file.
 //  This is needed for calling Google Cloud PubSub, Logging, Trace, Debug APIs
-//  on Linux / MacOS / Ubuntu on Windows.
-const keyFilename = './google-credentials.json';
+//  on Linux / MacOS / Ubuntu on Windows.  Assume it's in the main folder for the app.
+const keyFilename = [process.cwd(), 'google-credentials.json'].join('/');
 //  If we are running in the Google Cloud, no credentials necessary.
 const googleCredentials = isCloudFunc ? null : { projectId, keyFilename };
 
