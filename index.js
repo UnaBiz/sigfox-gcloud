@@ -45,7 +45,7 @@ function log(req, action0, para0) {
     severity: level.toUpperCase(),
     resource: {
       type: 'cloud_function',
-      labels: { functionName },
+      labels: { function_name: functionName },
     } };
   const event = {};
   if (para && para.error) {
@@ -70,7 +70,7 @@ function isProcessedMessage(/* req, message */) {
   //  Return true if this message is being or has been processed recently by this server
   //  or another server.  We check the central queue.  In case of error return false.
   //  Returns a promise.
-  return false;  //  TODO
+  return Promise.resolve(false);  //  TODO
 }
 
 function publishMessage(req, oldMessage, device, type) {

@@ -70,8 +70,11 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
 1. Configure the Sigfox backend to use the `sigfoxCallback`
    Google Cloud Function as the HTTPS callback for our Sigfox devices.
-   The URL may be obtained from the Google Cloud Functions Console.
-   Set the payload as:
+   The URL may be obtained from the Google Cloud Functions Console.  The URL looks like:
+   
+       https://us-central1-myproject.cloudfunctions.net/sigfoxCallback
+
+1. Set the Sigfox message payload as:
 
     ```json
     {                             
@@ -97,7 +100,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     passing the `type` parameter in the URL like this:
 
     ```
-    https://.../myproject.appspot.com?type=gps
+    https://us-central1-myproject.cloudfunctions.net/sigfoxCallback?type=gps
     ```
 
     It's OK to omit the `type` parameter, we may also use routing rules
@@ -256,13 +259,40 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
     `https://docs.google.com/spreadsheets/d/1OtlfVx6kibMxnZoSwq76Vod8HhaK5tzBIBAewtZlbXM/edit?usp=sharing`
 
-1. To test the structured message decoding, pass this as the `data` field of the Sigfox message:
+1. To test the structured message decoding, send a Sigfox message with
+   the `data` field set ti:
 
     ```
     920e82002731b01db0512201
     ```
+   
+   We may also use a URL testing tool like Postman to send a POST request to the `sigfoxCallback` URL e.g.
       
-1. This will be decoded as 
+   `https://us-central1-myproject.cloudfunctions.net/sigfoxCallback`
+
+   Set the `Content-Type` header to `application/json`. Set the body to:
+   
+    ```json
+    {
+      "device":"1A2345",
+      "data":"920e82002731b01db0512201",
+      "time":"1476980426",
+      "duplicate":"false",
+      "snr":"18.86",
+      "station":"0000",
+      "avgSnr":"15.54",
+      "lat":"1",
+      "lng":"104",
+      "rssi":"-123.00",
+      "seqNumber":"1492",
+      "ack":"false",
+      "longPolling":"false"
+    }
+    ```
+   
+    where `device` is your device ID.
+   
+1. This will be decoded and displayed in the Google Sheet as 
 
     ```
     ctr (counter): 13
