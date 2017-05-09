@@ -7,6 +7,9 @@
 //  See this for the definition of structured messages:
 //  https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
 
+//  //////////////////////////////////////////////////////////////////////////////////////////
+//  Begin Common Declarations
+
 /* eslint-disable camelcase, no-console, no-nested-ternary, import/no-dynamic-require,
  import/newline-after-import, import/no-unresolved, global-require, max-len */
 if (process.env.FUNCTION_NAME) {
@@ -16,6 +19,12 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/debug-agent').start();
 }
 const sigfoxgcloud = require('sigfox-gcloud');
+
+//  End Common Declarations
+//  //////////////////////////////////////////////////////////////////////////////////////////
+
+//  //////////////////////////////////////////////////////////////////////////////////////////
+//  Begin Message Processing Code
 
 const firstLetter = 1;
 const firstDigit = 27;
@@ -27,18 +36,6 @@ function decodeLetter(code) {
   if (code >= firstDigit) return (code - firstDigit) + '0'.charCodeAt(0);
   return 0;
 }
-
-/*
-function identifyMessage(req, msg) {
-  //  Return true if this is a structured message e.g. 920e5a00b051680194597b00.
-  if (!msg || !msg.data) return false;
-  const data = msg.data;
-  //  TODO: Support 1 or 2 fields.
-  if (data.substr(0, 2) !== '92') return false;
-  if (data.length !== 24) return false;  //  12 bytes.
-  return true;
-}
-*/
 
 function decodeMessage(req, body) { /* eslint-disable no-bitwise, operator-assignment */
   //  Decode the packed binary SIGFOX message body data e.g. 920e5a00b051680194597b00
@@ -93,6 +90,12 @@ function task(req, device, body, msg) {
     //  Return the message with the body updated.
     .then(updatedBody => Object.assign({}, msg, { body: updatedBody }));
 }
+
+//  End Message Processing Code
+//  //////////////////////////////////////////////////////////////////////////////////////////
+
+//  //////////////////////////////////////////////////////////////////////////////////////////
+//  Main Function
 
 //  When this Google Cloud Function is triggered, we call main() then task().
 exports.main = event => sigfoxgcloud.main(event, task);
