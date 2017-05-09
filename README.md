@@ -12,7 +12,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
   crashing will not affect others. Google Cloud PubSub message
   queues are used to pass the Sigfox messages reliably between processing modules.
 
-<img src="https://github.com/UnaBiz/media/blob/master/sigfox-gcloud/sigfox-gcloud-arch.png" width="1024">
+<img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.png" width="1024">
 
 ## Getting Started
 
@@ -130,32 +130,35 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
     Sigfox Cloud
     
-    --> `sigfoxCallback` function
+    ▶️ `sigfoxCallback` cloud function
     
-    --> `sigfox.devices.all` queue
+    ▶️ `sigfox.devices.all` message queue
     
-    --> `routeMessage` function to route the message
+    ▶️ `routeMessage` cloud function to route the message
     
-    --> `sigfox.types.decodeStructuredMessage` queue 
+    ▶️ `sigfox.types.decodeStructuredMessage` message queue 
 
-    --> `decodeStructuredMessage` function to decode the message
+    ▶️ `decodeStructuredMessage` cloud function to decode the message
     
-    --> `sigfox.types.logToGoogleSheets` queue
+    ▶️ `sigfox.types.logToGoogleSheets` message queue
     
-    --> `logToGoogleSheets` function to write the message to Google Sheets
+    ▶️ `logToGoogleSheets` cloud function to write the message to Google Sheets
 
-    <img src="https://github.com/UnaBiz/media/blob/master/sigfox-gcloud/sigfox-gcloud-arch.png" width="1024">
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.png" width="1024">
 
 1.  How it works:
 
     - Sigfox messages are pushed by the Sigfox Cloud to the Google Cloud Function
     `sigfoxCallback`
     
-    - The Sigfox messages are delivered to the Cloud Function
-    `routeMessage` via PubSub message queue `sigfox.devices.all`
+    - Cloud Function `sigfoxCallback` delivers the message to PubSub message queue
+      `sigfox.devices.all`, and also to the device ID and device type queues
     
-    - Cloud Function `routeMessage` will assign a route to the 
-      Sigfox message using a rule like this:
+    - Cloud Function `routeMessage` listens to PubSub message queue 
+      `sigfox.devices.all` and picks up the new message
+    
+    - Cloud Function `routeMessage` assign a route to the 
+      Sigfox message using a rule like this: (see `routeMessage/routes.js`)
 
     ```javascript
     //  Each element of this array maps device IDs to route
@@ -190,7 +193,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     ];
     ```
     
-    - This will route the message to functions `decodeStructuredMessage` and `logToGoogleSheets`
+    - This rule routes the message to functions `decodeStructuredMessage` and `logToGoogleSheets`
       via the queues `sigfox.types.decodeStructuredMessage` and `sigfox.types.logToGoogleSheets`
 
 1.  See this for the definition of structured messages:
@@ -264,7 +267,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     `https://docs.google.com/spreadsheets/d/1OtlfVx6kibMxnZoSwq76Vod8HhaK5tzBIBAewtZlbXM/edit?usp=sharing`
 
 1. To test the structured message decoding, send a Sigfox message with
-   the `data` field set ti:
+   the `data` field set to:
 
     ```
     920e82002731b01db0512201
@@ -306,7 +309,9 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
 ## Creating a Sigfox message processing module
 
-1. Create a Google Cloud Function, using `decodeStructuredMessage` as a template:
+1. Create a Google Cloud Function, using 
+    [`decodeStructuredMessage`](https://github.com/UnaBiz/sigfox-gcloud/tree/master/decodeStructuredMessage) 
+    as a template:
 
     ```bash
     mkdir myfunction
@@ -316,15 +321,105 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     cd myfunction
     ```
 
-1. Install `sigfox-gcloud`
+1. Install `sigfox-gcloud` library:
 
     ```bash
     npm install --save sigfox-gcloud
     ```
 
-1. Configure the Google PubSub message queue to be listened in `deploy.sh`
+1. Configure the Google PubSub message queue to be listened in 
+    [`deploy.sh`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/deploy.sh#L3-L5)
+    Any message delivered to this queue will trigger the
+    message processing function.
 
-1. Create the queues in Google PubSub Console
+      ```bash
+      name=decodeStructuredMessage
+      trigger=--trigger-topic
+      topic=sigfox.types.${name}
+      ```
+
+1. Create the listen queue in 
+    [*Google PubSub Console*](https://console.cloud.google.com/cloudpubsub/topicList), 
+    e.g. `sigfox.types.decodeStructuredMessage`
+
+1. Edit the message processing code in 
+    [`index.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/index.js).  
+    Every message processing function has 3 sections:
+   
+   - **Common Declarations**
+   
+      ```javascript
+      if (process.env.FUNCTION_NAME) {
+        require('@google-cloud/trace-agent').start();
+        require('@google-cloud/debug-agent').start();
+      }
+      const sigfoxgcloud = require('sigfox-gcloud');
+      ```
+   
+     The standard declarations here initialise the
+      `sigfox-gcloud` library, **Google Cloud Trace** 
+      and **Google Cloud Debug** functions.  Retain this
+      section without changes.
+   
+   - **Message Processing Code**
+   
+      Replace this section with our JavaScript message processing code.
+      We need to expose a function named `task()` that will perform the
+      processing for a Sigfox message that has been delivered.
+      
+      ```javascript
+      function task(req, device, body, msg)
+      ```
+      
+      `req` contains info about the message that triggered the task
+       
+       `device` is the Sigfox device ID
+       
+       `body` is the body of the Sigfox message, which contains fields like:
+        
+        ```json
+        {
+          "device":"1A2345",
+          "data":"920e82002731b01db0512201",
+          "time":"1476980426",
+          "duplicate":"false",
+          "snr":"18.86",
+          "station":"0000",
+          "avgSnr":"15.54",
+          "lat":"1",
+          "lng":"104",
+          "rssi":"-123.00",
+          "seqNumber":"1492",
+          "ack":"false",
+          "longPolling":"false"
+        }
+        ```
+            
+       `msg` contains the complete message delivered by Google Cloud PubSub.
+       This includes the `device`, `body`, `history` and `route` fields.
+       
+       `task()` should return a promise for the updated message after
+       processing the message.
+      
+   - **Main Function**
+
+      ```javascript
+      exports.main = event => sigfoxgcloud.main(event, task);
+      ```
+  
+      The `main()` function that will be called upon receiving a message
+      shall always be defined as above.  This calls the `main()` function
+       in the `sigfox-gcloud` library which performs the following:
+       
+       - Decode the message received from Google Cloud PubSub (base64 format)
+
+       - Execute the `task()` function above to process the message
+       
+       - Record the history of `task()` functions called
+       
+       - Dispatch the resulting message to the next step (if any) of the
+          message route contained in the message.   The message route
+          was set previously by the `routeMessage` cloud function.
 
 1. Deploy the module
  
