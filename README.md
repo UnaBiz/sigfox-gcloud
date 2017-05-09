@@ -12,6 +12,8 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
   crashing will not affect others. Google Cloud PubSub message
   queues are used to pass the Sigfox messages reliably between processing modules.
 
+<img src="https://github.com/UnaBiz/media/blob/master/sigfox-gcloud/sigfox-gcloud-arch.png" width="1024">
+
 ## Getting Started
 
 1. Download this source folder to your computer.  For development
@@ -141,6 +143,8 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     --> `sigfox.types.logToGoogleSheets` queue
     
     --> `logToGoogleSheets` function to write the message to Google Sheets
+
+    <img src="https://github.com/UnaBiz/media/blob/master/sigfox-gcloud/sigfox-gcloud-arch.png" width="1024">
 
 1.  How it works:
 
