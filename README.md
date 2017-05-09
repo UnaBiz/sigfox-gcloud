@@ -139,6 +139,8 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     
     --> `logToGoogleSheets` function to write the message to Google Sheets
 
+1.  How it works:
+
     - Sigfox messages are pushed by the Sigfox Cloud to the Google Cloud Function
     `sigfoxCallback`
     
@@ -252,21 +254,21 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
 1. Refer to the sample Google Sheet here:
 
-  `https://docs.google.com/spreadsheets/d/1OtlfVx6kibMxnZoSwq76Vod8HhaK5tzBIBAewtZlbXM/edit?usp=sharing`
+    `https://docs.google.com/spreadsheets/d/1OtlfVx6kibMxnZoSwq76Vod8HhaK5tzBIBAewtZlbXM/edit?usp=sharing`
 
 1. To test the structured message decoding, pass this as the `data` field of the Sigfox message:
 
-  ```
-  920e82002731b01db0512201
-  ```
+    ```
+    920e82002731b01db0512201
+    ```
       
 1. This will be decoded as 
 
-  ```
-  ctr (counter): 13
-  lig (light level): 760
-  tmp (temperature): 29        
-  ```
+    ```
+    ctr (counter): 13
+    lig (light level): 760
+    tmp (temperature): 29        
+    ```
 
 ## Creating a Sigfox message processing module
 
