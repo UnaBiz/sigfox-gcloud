@@ -12,7 +12,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
   crashing will not affect others. Google Cloud PubSub message
   queues are used to pass the Sigfox messages reliably between processing modules.
 
-<img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.png" width="1024">
+<img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg" width="1024">
 
 ## Getting Started
 
@@ -144,7 +144,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     
     ▶️ `logToGoogleSheets` cloud function to write the message to Google Sheets
 
-    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.png" width="1024">
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg" width="1024">
 
 1.  How it works:
 
@@ -346,7 +346,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     [`index.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/index.js).  
     Every message processing function has 3 sections:
    
-   - **Common Declarations**
+   - [**Common Declarations**](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/index.js#L10-L24)
    
       ```javascript
       if (process.env.FUNCTION_NAME) {
@@ -361,7 +361,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
       and **Google Cloud Debug** functions.  Retain this
       section without changes.
    
-   - **Message Processing Code**
+   - [**Message Processing Code**](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/index.js#L26-L95)
    
       Replace this section with our JavaScript message processing code.
       We need to expose a function named `task()` that will perform the
@@ -401,15 +401,16 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
        `task()` should return a promise for the updated message after
        processing the message.
       
-   - **Main Function**
+   - [**Main Function**](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/index.js#L26-L95)
 
       ```javascript
       exports.main = event => sigfoxgcloud.main(event, task);
       ```
   
       The `main()` function that will be called upon receiving a message
-      shall always be defined as above.  This calls the `main()` function
-       in the `sigfox-gcloud` library which performs the following:
+      shall always be defined as above.  This calls the 
+      [`main()`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/index.js#L182-L213) 
+      function in the `sigfox-gcloud` library which performs the following:
        
        - Decode the message received from Google Cloud PubSub (base64 format)
 
@@ -427,7 +428,8 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     ./deploy.sh
     ```
 
-1. Update the Sigfox message processing routes in `routeMessage/routes.js`
+1. Update the Sigfox message processing routes in 
+    [`routeMessage/routes.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/routeMessage/routes.js)
 
 1. Send a Sigfox message to test
 
