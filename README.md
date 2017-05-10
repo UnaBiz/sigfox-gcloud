@@ -135,11 +135,15 @@ cd sigfox-gcloud
 
     <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback.png" width="1024">
 
-    **URL Pattern**: Enter the **Sigfox Callback URL**
+    **URL Pattern**: <br>
+    Enter the **Sigfox Callback URL**
    that we have copied earlier.  It should look like:   
    `https://us-central1-myproject.cloudfunctions.net/sigfoxCallback`          
 
-1. Set the Sigfox message payload as:
+    **Content Type**: <br>
+    **`application/json`**
+
+1. Set the **Body** (Sigfox message payload) as:
 
     ```json
     {                             
@@ -159,7 +163,26 @@ cd sigfox-gcloud
     }                             
     ```
 
-1.  Set the `Content-Type` header to `application/json` 
+    With this setting, the Sigfox cloud will deliver
+    messages to our server in JSON format like this:
+    
+    ```json
+    {
+      "device":"1A2345",
+      "data":"920e82002731b01db0512201",
+      "time":"1476980426",
+      "duplicate":"false",
+      "snr":"18.86",
+      "station":"1234",
+      "avgSnr":"15.54",
+      "lat":"1",
+      "lng":"104",
+      "rssi":"-123.00",
+      "seqNumber":"1492",
+      "ack":"false",
+      "longPolling":"false"
+    }
+    ```
 
 1.  We may set the callback type in the `sigfoxCallback` URL by
     passing the `type` parameter in the URL like this:
@@ -268,18 +291,34 @@ cd sigfox-gcloud
 
     https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
 
-### Defining the Sigfox message processing steps
+### Testing the Sigfox server
 
 1.  Send some Sigfox messages from the Sigfox devices. Monitor the progress
-    of the processing through the Google Cloud Logging Console.
+    of the processing through the 
+    [Google Cloud Logging Console.](https://console.cloud.google.com/logs/viewer?resource=cloud_function&minLogLevel=0&expandAll=false)  
+    Select **"Cloud Function"** as the **"Resource"**
+        
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log.png" width="1024">
     
-1.  Processing errors will be reported to the Google Cloud Error Reporting
-    Console.
-    
-1.  We may configure Google Cloud StackDriver Monitoring to create incident
-    reports upon detecting any errors.  StackDriver may also be used to
-    generate dashboards for monitoring the PubSub message processing queues.
+1.  Processing errors will be reported to the 
+    [Google Cloud Error Reporting Console.](https://console.cloud.google.com/errors?time=P1D&filter&order=COUNT_DESC)
+            
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-error-reporting.png" width="1024">
 
+1.  The [Google Cloud PubSub Console](https://console.cloud.google.com/cloudpubsub/topicList) 
+    shows the message queues that have been created
+    and how many Cloud Functions are listening to each queue.
+           
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-topics.png" width="1024">
+    
+1.  We may configure 
+    [Google Cloud Stackdriver Monitoring](https://app.google.stackdriver.com/services/cloud_pubsub/topics) 
+    to create incident
+    reports upon detecting any errors.  Stackdriver may also be used to
+    generate dashboards for monitoring the PubSub message processing queues.       
+    
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-stackdriver.png" width="1024">
+    
 #  Demo    
     
 1. The sample code calls the `decodeStructuredMessage` Cloud Function to decode a structured
