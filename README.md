@@ -14,15 +14,17 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
 <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg" width="1024">
 
-## Getting Started
+# Getting Started
 
-1. Download this source folder to your computer.  For development
-   we support Linux, MacOS and Ubuntu on Windows 10.
+Download this source folder to your computer.  For development
+   we support Linux, MacOS and [Ubuntu on Windows 10](https://msdn.microsoft.com/en-us/commandline/wsl/about).
 
     ```bash
     git clone https://github.com/UnaBiz/sigfox-gcloud.git
     cd sigfox-gcloud
     ```
+
+### Setting up Google Cloud
 
 1. Create a Google Cloud Platform project. Assume the project ID is `myproject`.
 
@@ -90,7 +92,27 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     scripts/deployall.sh  
     ```
 
-1. Configure the Sigfox backend to use the `sigfoxCallback`
+### Setting the Sigfox callback
+
+1.  As a Sigfox device maker you should have access to the *Sigfox Backend Portal*.
+    We shall use the portal to configure the callback URL for
+    your device.
+    
+    If you're not a Sigfox device maker yet, you may purchase the
+    **UnaShield Sigfox Shield for Arduino** to get access to the
+    Sigfox Backend.
+
+    https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
+
+1. Log on to the **Sigfox Backend Portal**<br>
+    Click **"Device Type"**<br>
+    Select your Device Type<br>
+    Click **"Callbacks"**<br>
+    Click **"New"**
+
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png" width="1024">
+
+1. Configure the Sigfox Backend to use the `sigfoxCallback`
    Google Cloud Function as the HTTPS callback for our Sigfox devices.
    The URL may be obtained from the Google Cloud Functions Console.  The URL looks like:
    
@@ -116,6 +138,8 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     }                             
     ```
 
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback.png" width="1024">
+
 1.  Set the `Content-Type` header to `application/json` 
 
 1.  We may set the callback type in the `sigfoxCallback` URL by
@@ -127,6 +151,8 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
     It's OK to omit the `type` parameter, we may also use routing rules
     to define the processing steps.
+
+### Defining the Sigfox message processing steps
 
 1.  We define the Sigfox message processing steps as *routes* in the file
 
@@ -148,7 +174,6 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
     Sigfox Cloud
     
-<<<<<<< HEAD
     ▶️ [`sigfoxCallback` cloud function](https://github.com/UnaBiz/sigfox-gcloud/tree/master/sigfoxCallback)
       to ingest messages from Sigfox Cloud
           
@@ -164,21 +189,6 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     ▶️ `sigfox.types.logToGoogleSheets` message queue
     
     ▶️ [`logToGoogleSheets` cloud function](https://github.com/UnaBiz/sigfox-gcloud/tree/master/logToGoogleSheets) to write the decoded message to Google Sheets
-=======
-    ▶️ `sigfoxCallback` cloud function
-    
-    ▶️ `sigfox.devices.all` message queue
-    
-    ▶️ `routeMessage` cloud function to route the message
-    
-    ▶️ `sigfox.types.decodeStructuredMessage` message queue 
-
-    ▶️ `decodeStructuredMessage` cloud function to decode the message
-    
-    ▶️ `sigfox.types.logToGoogleSheets` message queue
-    
-    ▶️ `logToGoogleSheets` cloud function to write the message to Google Sheets
->>>>>>> origin/master
 
     <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg" width="1024">
 
@@ -190,7 +200,6 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     - Cloud Function `sigfoxCallback` delivers the message to PubSub message queue
       `sigfox.devices.all`, as well as to the device ID and device type queues
     
-<<<<<<< HEAD
     - Cloud Function 
       [`routeMessage`](https://github.com/UnaBiz/sigfox-gcloud/tree/master/routeMessage)
       listens to PubSub message queue 
@@ -199,16 +208,6 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     - Cloud Function `routeMessage` assigns a route to the 
       Sigfox message using a rule like this: 
       (see [`routeMessage/routes.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/routeMessage/routes.js))
-=======
-    - Cloud Function `sigfoxCallback` delivers the message to PubSub message queue
-      `sigfox.devices.all`, and also to the device ID and device type queues
-    
-    - Cloud Function `routeMessage` listens to PubSub message queue 
-      `sigfox.devices.all` and picks up the new message
-    
-    - Cloud Function `routeMessage` assign a route to the 
-      Sigfox message using a rule like this: (see `routeMessage/routes.js`)
->>>>>>> origin/master
 
     ```javascript
     //  Each element of this array maps device IDs to route
@@ -250,6 +249,8 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
     https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
 
+### Defining the Sigfox message processing steps
+
 1.  Send some Sigfox messages from the Sigfox devices. Monitor the progress
     of the processing through the Google Cloud Logging Console.
     
@@ -260,7 +261,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     reports upon detecting any errors.  StackDriver may also be used to
     generate dashboards for monitoring the PubSub message processing queues.
 
-##  Demo    
+#  Demo    
     
 1. The sample code calls the `decodeStructuredMessage` Cloud Function to decode a structured
    Sigfox message containing encoded sensor data (counter, light level, temperature). 
@@ -357,7 +358,7 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
     tmp (temperature): 29        
     ```
 
-## Creating a Sigfox message processing module
+# Creating a Sigfox message processing module
 
 1. Create a Google Cloud Function, using 
     [`decodeStructuredMessage`](https://github.com/UnaBiz/sigfox-gcloud/tree/master/decodeStructuredMessage) 
