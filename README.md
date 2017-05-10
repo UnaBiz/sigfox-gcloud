@@ -19,10 +19,10 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 Download this source folder to your computer.  For development
    we support Linux, MacOS and [Ubuntu on Windows 10](https://msdn.microsoft.com/en-us/commandline/wsl/about).
 
-    ```bash
-    git clone https://github.com/UnaBiz/sigfox-gcloud.git
-    cd sigfox-gcloud
-    ```
+```bash
+git clone https://github.com/UnaBiz/sigfox-gcloud.git
+cd sigfox-gcloud
+```
 
 ### Setting up Google Cloud
 
@@ -92,6 +92,25 @@ Download this source folder to your computer.  For development
     scripts/deployall.sh  
     ```
 
+1. Go to the *Google Cloud Functions Console*
+
+    https://console.cloud.google.com/functions/list
+
+    There should 4 Cloud Functions defined<br>
+    Click the **`sigfoxCallback`** Cloud Function
+    
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-list.png" width="1024">
+
+1.  Click the **`Trigger`** tab<br>
+    Copy the **URL for `sigfoxCallback`**<br>
+    The URL should look like:  
+    `https://us-central1-myproject.cloudfunctions.net/sigfoxCallback`          
+    
+    This is the HTTPS URL that will invoke the `sigfoxCallback` Cloud Function.
+    We shall set this as the **Sigfox callback URL** later.
+
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-url.png" width="500">
+
 ### Setting the Sigfox callback
 
 1.  As a Sigfox device maker you should have access to the *Sigfox Backend Portal*.
@@ -112,11 +131,13 @@ Download this source folder to your computer.  For development
 
     <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png" width="1024">
 
-1. Configure the Sigfox Backend to use the `sigfoxCallback`
-   Google Cloud Function as the HTTPS callback for our Sigfox devices.
-   The URL may be obtained from the Google Cloud Functions Console.  The URL looks like:
-   
-       https://us-central1-myproject.cloudfunctions.net/sigfoxCallback
+1.  Fill in the callback details as follows:
+
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback.png" width="1024">
+
+    **URL Pattern**: Enter the **Sigfox Callback URL**
+   that we have copied earlier.  It should look like:   
+   `https://us-central1-myproject.cloudfunctions.net/sigfoxCallback`          
 
 1. Set the Sigfox message payload as:
 
@@ -137,8 +158,6 @@ Download this source folder to your computer.  For development
      "longPolling": "{longPolling}"
     }                             
     ```
-
-    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback.png" width="1024">
 
 1.  Set the `Content-Type` header to `application/json` 
 
