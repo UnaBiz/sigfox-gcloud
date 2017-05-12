@@ -30,7 +30,7 @@ cd sigfox-gcloud
 
     [*GO TO THE PROJECTS PAGE*](https://console.cloud.google.com/project?_ga=1.185886880.864313361.1477837820)
     
-1. Create a file `.env` file in the `sigfox-gcloud` folder.  Edit the file
+1. Create a file named `.env` in the `sigfox-gcloud` folder.  Edit the file
    and populate the `GCLOUD_PROJECT` variable with your project ID like this:
 
     ```bash
@@ -43,7 +43,7 @@ cd sigfox-gcloud
 
 1. Enable the Cloud Functions and Cloud Pub/Sub APIs.
 
-    [*ENABLE THE APIS*](https://console.cloud.google.com/flows/enableapi?apiid=cloudfunctions,pubsub&redirect=https://cloud.google.com/functions/docs/tutorials/pubsub&_ga=1.149082047.864313361.1477837820)
+    [*ENABLE THE APIS*](https://console.cloud.google.com/flows/enableapi?apiid=cloudfunctions,pubsub)
 
 1. Install and initialize the Google Cloud SDK.
 
@@ -65,25 +65,39 @@ cd sigfox-gcloud
 1. Create the Google PubSub message queues that we will use to route the
    Sigfox messages between the Cloud Functions:
    
+    ```bash
+    gcloud beta pubsub topics create sigfox.devices.all
+    gcloud beta pubsub topics create sigfox.types.decodeStructuredMessage
+    gcloud beta pubsub topics create sigfox.types.logToGoogleSheets
+    ```
+    
+   Optionally, we may run these commands to create the PubSub message queues
+   for each device ID and device type that we wish to support.  For example, to
+   support device ID `1A234` and device type `gps`, we would execute:
+
+    ```bash
+    gcloud beta pubsub topics create sigfox.devices.1A234
+    gcloud beta pubsub topics create sigfox.types.gps
+    ```
+    
+    The PubSub queues will be used as follows:
     - `sigfox.devices.all`: The queue that will receive Sigfox messages for all devices
     
     - `sigfox.devices.<deviceID>`: The queue that will receive Sigfox messages for a specific device 
-      e.g. `sigfox.devices.1A234`
+      e.g. `sigfox.devices.1A234`.  Device ID must be in uppercase.
       
     - `sigfox.types.<deviceType>`: The queue that will receive Sigfox messages for a specific device type 
       or a message processing step e.g. `sigfox.types.gps`
-      
-   Also create these queues that will be used for the Sigfox message processing demo: 
 
-    ```
-    sigfox.types.decodeStructuredMessage
-    sigfox.types.logToGoogleSheets
-    ```
+    - `sigfox.types.decodeStructuredMessage`, `sigfox.types.logToGoogleSheets`:
+      used for sending messages to be decoded and logged in the Sigfox 
+      message processing demo below
 
-1. Create a Google Cloud Storage bucket `myproject.appspot.com` to stage our Cloud Functions files during deployment:    
+1. Create a Google Cloud Storage bucket `gs://<projectid>-sigfox-gcloud` to stage our Cloud Functions files 
+    during deployment, like this:    
    
-    ```javascript
-    gsutil mb gs://myproject.appspot.com
+    ```bash
+    gsutil mb gs://myproject-sigfox-gcloud
     ```
 
 1. Deploy all the included Cloud Functions with the script:
@@ -375,8 +389,25 @@ cd sigfox-gcloud
 
     `https://docs.google.com/spreadsheets/d/1OtlfVx6kibMxnZoSwq76Vod8HhaK5tzBIBAewtZlbXM/edit?usp=sharing`
 
-1. To test the structured message decoding, send a Sigfox message with
-   the `data` field set to:
+1. To test the Sigfox message processing routes with your device ID
+    say `1A2345`, edit the file
+    [`routeMessage/routes.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/routeMessage/routes.js)
+
+    Add the device to the list of devices:
+    
+    ```javascript
+    //  Each element of this array maps device IDs to route
+    //  [ msgType1, msgType2, .... ]
+    module.exports = [
+      { //  This is the first device IDs -> route.
+        devices:
+        [
+          '1A2345',  //  Our device ID.
+           ...
+    ```
+    
+1. To test the structured message decoding, send a Sigfox message
+    from device ID `1A2345` with the `data` field set to:
 
     ```
     920e82002731b01db0512201
@@ -386,7 +417,9 @@ cd sigfox-gcloud
       
    `https://us-central1-myproject.cloudfunctions.net/sigfoxCallback`
 
-   Set the `Content-Type` header to `application/json`. Set the body to:
+   Set the `Content-Type` header to `application/json`. 
+   If you're using Postman, click `Body` -> `Raw` -> `JSON (application/json)`
+   Set the body to:
    
     ```json
     {
@@ -406,7 +439,17 @@ cd sigfox-gcloud
     }
     ```
    
-    where `device` is your device ID.
+    where `device` is your device ID.  The response should look like:
+    
+    ```json
+    {
+      "1A2345": {
+        "noData": true
+      }
+    }
+    ```
+        
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/postman-callback.png" width="1024">
    
 1. This will be decoded and displayed in the Google Sheet as 
 
@@ -436,20 +479,23 @@ cd sigfox-gcloud
     npm install --save sigfox-gcloud
     ```
 
-1. Configure the Google PubSub message queue to be listened in 
-    [`deploy.sh`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/deploy.sh#L3-L5)
-    Any message delivered to this queue will trigger the
+1. Edit the Cloud Function deployment script  
+    [`deploy.sh`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/deploy.sh#L3-L5).
+    Edit the `name` parameter and replace the value by the name of
+    your message processing function, e.g. `myfunction`.
+    
+    Any message delivered to the queue `sigfox.types.myfunction` will trigger the
     message processing function.
 
       ```bash
-      name=decodeStructuredMessage
+      name=myfunction
       trigger=--trigger-topic
       topic=sigfox.types.${name}
       ```
 
 1. Create the listen queue in 
     [*Google PubSub Console*](https://console.cloud.google.com/cloudpubsub/topicList), 
-    e.g. `sigfox.types.decodeStructuredMessage`
+    e.g. `sigfox.types.myfunction`
 
 1. Edit the message processing code in 
     [`index.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/index.js).  
@@ -462,7 +508,7 @@ cd sigfox-gcloud
         require('@google-cloud/trace-agent').start();
         require('@google-cloud/debug-agent').start();
       }
-      const sigfoxgcloud = require('sigfox-gcloud');
+      const sgcloud = require('sigfox-gcloud');
       ```
    
      The standard declarations here initialise the
@@ -510,10 +556,21 @@ cd sigfox-gcloud
        `task()` should return a promise for the updated message after
        processing the message.
       
+       To write debug messages to the Google Cloud Logging Console, call 
+       `sgcloud.log(req, action, parameters)` like this:
+       
+          sgcloud.log(req, 'decodeMessage', { result, body });
+
+       To report errors to the Google Cloud Error Reporting Console, call
+       `sgcloud.log(req, action, parameters)`, where `parameters` includes 
+       an `error` field containing the JavaScript error.
+
+           sgcloud.log(req, 'decodeMessage', { error, body });
+      
    - [**Main Function**](https://github.com/UnaBiz/sigfox-gcloud/blob/master/decodeStructuredMessage/index.js#L26-L95)
 
       ```javascript
-      exports.main = event => sigfoxgcloud.main(event, task);
+      exports.main = event => sgcloud.main(event, task);
       ```
   
       The `main()` function that will be called upon receiving a message
@@ -540,5 +597,24 @@ cd sigfox-gcloud
 1. Update the Sigfox message processing routes in 
     [`routeMessage/routes.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/routeMessage/routes.js)
 
-1. Send a Sigfox message to test
+    To trigger a named function `myfunction` by device ID `1A2345`, 
+    we may define the route like this:
+    
+    ```javascript
+    const myfunction = 'myfunction';
+    ...
+    module.exports = [
+      { //  This is the first device IDs -> route.
+        devices: [ ... ],
+        route: [ ... ],
+      },
+      //  Add your device IDs -> route here.
+      {
+        devices: [ '1A2345' ],  //  Our device ID.
+        route: [ myfunction ],  //  Our cloud function.
+      },
+    ];
+    ```
 
+1. To test, send a Sigfox message from the device ID specified above, 
+    e.g. `1A2345`.

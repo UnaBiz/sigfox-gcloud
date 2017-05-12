@@ -20,7 +20,7 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/debug-agent').start();
 }
 const uuid = require('uuid');
-const sigfoxgcloud = require('sigfox-gcloud');
+const sgcloud = require('sigfox-gcloud');
 
 function getResponse(device) {
   //  Return the standard callback response to Sigfox Cloud, which
@@ -41,7 +41,7 @@ function saveMessage(req, device, type, body) {
   //  to process this message e.g. routeMessage.
   //  Where does type come from?  It's specified in the callback URL
   //  e.g. https://myproject.appspot.com?type=gps
-  sigfoxgcloud.log(req, 'saveMessage', { device, type, body });
+  sgcloud.log(req, 'saveMessage', { device, type, body });
   const queues = [
     { device },  //  sigfox.devices.<deviceID> (the device specific queue)
     { device: 'all' },  //  sigfox.devices.all (the queue for all devices)
@@ -50,12 +50,12 @@ function saveMessage(req, device, type, body) {
   const query = req.query;
   //  Compose the message and record the history.
   const message0 = { device, type, body, query };
-  const message = sigfoxgcloud.updateMessageHistory(req, message0, device);
+  const message = sgcloud.updateMessageHistory(req, message0, device);
   //  Get a list of promises, one for each publish operation to each queue.
   const promises = [];
   for (const queue of queues) {
     //  Send message to each queue, either the device ID or message type queue.
-    const promise = sigfoxgcloud.publishMessage(req, message, queue.device, queue.type);
+    const promise = sgcloud.publishMessage(req, message, queue.device, queue.type);
     promises.push(promise);
   }
   //  Wait for the messages to be published to the queues.
@@ -88,7 +88,7 @@ function checkSequenceNumber(/* req, deviceID, event */) { /* eslint-disable no-
     if (missingCount > 0) {  //  Could be -1 for duplicate messages.
       module.exports._lastMissingMessages = missingCount;
       result = `${result} M${missingCount}`;
-      sigfoxgcloud.log(req, 'event/checkSequenceNumber', { deviceID, missingCount, event });
+      sgcloud.log(req, 'event/checkSequenceNumber', { deviceID, missingCount, event });
     }
   }
   cache.set(cache.seq, deviceID, seqNumber);
@@ -180,16 +180,16 @@ exports.main = (req0, res) => {
       : null;
   const oldMessage = { device, body, type };
   let updatedMessage = oldMessage;
-  sigfoxgcloud.log(req, 'start', { device, body, event, env: process.env });
+  sgcloud.log(req, 'start', { device, body, event, env: process.env });
 
   //  Now we run the task to publish the message to the 3 queues.
   //  Wait for the task to complete then dispatch to next step.
   const runTask = task(req, device, body, oldMessage)
-    .then(result => sigfoxgcloud.log(req, 'task_result', { result, device, body, event, oldMessage }))
+    .then(result => sgcloud.log(req, 'task_result', { result, device, body, event, oldMessage }))
     .then((result) => { updatedMessage = result; return result; })
-    .catch(error => sigfoxgcloud.log(req, 'task_error', { error, device, body, event, oldMessage }));
+    .catch(error => sgcloud.log(req, 'task_error', { error, device, body, event, oldMessage }));
   return runTask
     //  Dispatch will be skipped because isDispatched is set.
-    .then(() => sigfoxgcloud.dispatchMessage(req, updatedMessage, device))
-    .then(result => sigfoxgcloud.log(req, 'end', { result, device, body, event, updatedMessage }));
+    .then(() => sgcloud.dispatchMessage(req, updatedMessage, device))
+    .then(result => sgcloud.log(req, 'end', { result, device, body, event, updatedMessage }));
 };
