@@ -257,7 +257,7 @@ cd sigfox-gcloud
     → [`logToGoogleSheets` cloud function](https://github.com/UnaBiz/sigfox-gcloud/tree/master/logToGoogleSheets) to write the decoded message to Google Sheets
 
     [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg)
-    
+
 1.  How it works:
 
     - Sigfox messages are pushed by the Sigfox Cloud to the Google Cloud Function
@@ -466,16 +466,10 @@ cd sigfox-gcloud
     ```
     
 1.  The response from the callback function should look like this:
-    
-    ```json
-    {
-      "1A2345": {
-        "noData": true
-      }
-    }
-    ```
-           
-1. The test message sent above will be decoded and displayed in the Google Sheet as 
+        
+    <img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/postman-callback.png" width="1024">
+   
+1. This will be decoded and displayed in the Google Sheet as 
 
     ```
     ctr (counter): 13
