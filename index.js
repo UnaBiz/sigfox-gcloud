@@ -12,7 +12,7 @@ require('dotenv').load();
 //  project ID e.g. export GCLOUD_PROJECT=myproject
 const projectId = process.env.GCLOUD_PROJECT;    //  Google Cloud project ID.
 const functionName = process.env.FUNCTION_NAME || 'unknown_function';
-const isCloudFunc = !!functionName;  //  True if running in Google Cloud Function.
+const isCloudFunc = !!process.env.FUNCTION_NAME;  //  True if running in Google Cloud Function.
 
 //  Assume that the Google Service Account credentials are present in this file.
 //  This is needed for calling Google Cloud PubSub, Logging, Trace, Debug APIs
@@ -23,6 +23,7 @@ const googleCredentials = isCloudFunc ? null : { projectId, keyFilename };
 
 const logging = require('@google-cloud/logging')(googleCredentials);
 const pubsub = require('@google-cloud/pubsub')(googleCredentials);
+const util = require('util');
 const Buffer = require('safe-buffer').Buffer;
 const version = require('./package.json').version || 'unknown';
 
@@ -58,6 +59,10 @@ function log(req, action0, para0) {
     //  it delimits the action and parameters nicely in the log.
     event.__ = action || '';
     event._ = para || '';
+    if (!isCloudFunc) {
+      const out = [action, util.inspect(para, { colors: true })].join(' | ');
+      console.log(out);
+    }
   } /* eslint-enable no-underscore-dangle */
   //  Write the log.
   return loggingLog.write(loggingLog.entry(metadata, event))
@@ -218,11 +223,11 @@ module.exports = {
   isCloudFunc,
   keyFilename,
   log,
+  error: log,
   isProcessedMessage,
   updateMessageHistory,
   publishMessage,
   dispatchMessage,
   main,
 };
-
 

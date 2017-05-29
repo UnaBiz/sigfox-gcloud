@@ -18,7 +18,7 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/trace-agent').start();
   require('@google-cloud/debug-agent').start();
 }
-const sigfoxgcloud = require('sigfox-gcloud');
+const sgcloud = require('sigfox-gcloud');
 
 //  End Common Declarations
 //  //////////////////////////////////////////////////////////////////////////////////////////
@@ -26,8 +26,8 @@ const sigfoxgcloud = require('sigfox-gcloud');
 //  //////////////////////////////////////////////////////////////////////////////////////////
 //  Begin Message Processing Code
 
-const firstLetter = 1;
-const firstDigit = 27;
+const firstLetter = 1;  //  Letters are assigned codes 1 to 26, for A to Z
+const firstDigit = 27;  //  Digits are assigned codes 27 to 36, for 0 to 9
 
 function decodeLetter(code) {
   //  Convert the 5-bit code to a letter.
@@ -42,7 +42,7 @@ function decodeMessage(req, body) { /* eslint-disable no-bitwise, operator-assig
   //  2 bytes name, 2 bytes float * 10, 2 bytes name, 2 bytes float * 10, ...
   //  Returns a promise for the updated body.
   if (!body || !body.data) return Promise.resolve(body);
-  // sigfoxgcloud.log(req, 'decodeMessage', { body });
+  // sgcloud.log(req, 'decodeMessage', { body });
   try {
     const data = body.data;
     const updatedBody = Object.assign({}, body);
@@ -72,11 +72,11 @@ function decodeMessage(req, body) { /* eslint-disable no-bitwise, operator-assig
       updatedBody[name4] = val2 / 10.0;
     }
     const result = updatedBody;
-    sigfoxgcloud.log(req, 'decodeMessage', { result, body });
+    sgcloud.log(req, 'decodeMessage', { result, body });
     return Promise.resolve(result);
   } catch (error) {
     //  In case of error, return the original message.
-    sigfoxgcloud.log(req, 'decodeMessage', { error, body });
+    sgcloud.log(req, 'decodeMessage', { error, body });
     return Promise.resolve(body);
   }
 }
@@ -98,7 +98,7 @@ function task(req, device, body, msg) {
 //  Main Function
 
 //  When this Google Cloud Function is triggered, we call main() then task().
-exports.main = event => sigfoxgcloud.main(event, task);
+exports.main = event => sgcloud.main(event, task);
 
 //  Unit Test
 /* eslint-disable quotes, no-unused-vars */

@@ -18,7 +18,7 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/trace-agent').start();
   require('@google-cloud/debug-agent').start();
 }
-const sigfoxgcloud = require('sigfox-gcloud');
+const sgcloud = require('sigfox-gcloud');
 
 //  Map device ID to route [ msgType1, msgType2, .... ]
 //  This is hardcoded here so it can never fail e.g. due to database failure.
@@ -46,7 +46,7 @@ function validateMap(req) {
       }
     }
   }
-  sigfoxgcloud.log(req, 'validateMap', { map });
+  sgcloud.log(req, 'validateMap', { map });
   validatedMapDeviceToRoute = map;
   return validatedMapDeviceToRoute;
 }
@@ -63,7 +63,7 @@ function routeMessage(req, device, body, msg0) {
   //  Must clone the route because it might be mutated accidentally.
   msg.route = JSON.parse(JSON.stringify(route));
   const result = msg;
-  sigfoxgcloud.log(req, 'routeMessage', { result, route, device, body, msg });
+  sgcloud.log(req, 'routeMessage', { result, route, device, body, msg });
   return Promise.resolve(result);
 }
 
@@ -75,4 +75,4 @@ function task(req, device, body, msg) {
 }
 
 //  When this Google Cloud Function is triggered, we call main() then task().
-exports.main = event => sigfoxgcloud.main(event, task);
+exports.main = event => sgcloud.main(event, task);

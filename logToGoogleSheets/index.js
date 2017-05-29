@@ -14,7 +14,7 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/trace-agent').start();
   require('@google-cloud/debug-agent').start();
 }
-const sigfoxgcloud = require('sigfox-gcloud');
+const sgcloud = require('sigfox-gcloud');
 const googlesheets = require('sigfox-gcloud/lib/googlesheets');
 
 //  Upon startup, get a Google API token for Google Drive and Sheets access.
@@ -32,4 +32,4 @@ function task(req, device, body, msg) {
 }
 
 //  When this Google Cloud Function is triggered, we call main() then task().
-exports.main = event => sigfoxgcloud.main(event, task);
+exports.main = event => sgcloud.main(event, task);

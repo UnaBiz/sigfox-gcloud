@@ -9,7 +9,7 @@ localpath=$2
 trigger=$3
 topic=$4
 tmp=/tmp/cloudfunctions/${name}
-bucket=${GCLOUD_PROJECT}.appspot.com
+bucket=${GCLOUD_PROJECT}-sigfox-gcloud
 
 mkdir -p ${tmp}
 
