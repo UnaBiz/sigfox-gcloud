@@ -652,3 +652,7 @@ cd sigfox-gcloud
 
 1. To test, send a Sigfox message from the device ID specified above, 
     e.g. `1A2345`.
+
+# Getting the downlink response from Sigfox
+
+Refer to https://github.com/UnaBiz/unabiz-arduino/wiki/Downlink
