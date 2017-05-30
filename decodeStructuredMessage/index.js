@@ -18,7 +18,9 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/trace-agent').start();
   require('@google-cloud/debug-agent').start();
 }
+//  const sgcloud = require('../index');  //  For Unit Test.
 const sgcloud = require('sigfox-gcloud');
+const structuredMessage = require('./structuredMessage');
 
 //  End Common Declarations
 //  //////////////////////////////////////////////////////////////////////////////////////////
@@ -26,52 +28,14 @@ const sgcloud = require('sigfox-gcloud');
 //  //////////////////////////////////////////////////////////////////////////////////////////
 //  Begin Message Processing Code
 
-const firstLetter = 1;  //  Letters are assigned codes 1 to 26, for A to Z
-const firstDigit = 27;  //  Digits are assigned codes 27 to 36, for 0 to 9
-
-function decodeLetter(code) {
-  //  Convert the 5-bit code to a letter.
-  if (code === 0) return 0;
-  if (code >= firstLetter && code < firstDigit) return (code - firstLetter) + 'a'.charCodeAt(0);
-  if (code >= firstDigit) return (code - firstDigit) + '0'.charCodeAt(0);
-  return 0;
-}
-
-function decodeMessage(req, body) { /* eslint-disable no-bitwise, operator-assignment */
+function decodeMessage(req, body) {
   //  Decode the packed binary SIGFOX message body data e.g. 920e5a00b051680194597b00
   //  2 bytes name, 2 bytes float * 10, 2 bytes name, 2 bytes float * 10, ...
   //  Returns a promise for the updated body.
-  if (!body || !body.data) return Promise.resolve(body);
-  // sgcloud.log(req, 'decodeMessage', { body });
+  if (!body || !body.data) return Promise.resolve(null);
   try {
-    const data = body.data;
-    const updatedBody = Object.assign({}, body);
-    for (let i = 0; i < data.length; i = i + 8) {
-      const name = data.substring(i, i + 4);
-      const val = data.substring(i + 4, i + 8);
-      let name2 =
-        (parseInt(name[2], 16) << 12) +
-        (parseInt(name[3], 16) << 8) +
-        (parseInt(name[0], 16) << 4) +
-        parseInt(name[1], 16);
-      const val2 =
-        (parseInt(val[2], 16) << 12) +
-        (parseInt(val[3], 16) << 8) +
-        (parseInt(val[0], 16) << 4) +
-        parseInt(val[1], 16);
-
-      //  Decode name.
-      const name3 = [0, 0, 0];
-      for (let j = 0; j < 3; j = j + 1) {
-        const code = name2 & 31;
-        const ch = decodeLetter(code);
-        if (ch > 0) name3[2 - j] = ch;
-        name2 = name2 >> 5;
-      }
-      const name4 = String.fromCharCode(name3[0], name3[1], name3[2]);
-      updatedBody[name4] = val2 / 10.0;
-    }
-    const result = updatedBody;
+    const decodedData = structuredMessage.decodeMessage(body.data);
+    const result = Object.assign({}, body, decodedData);
     sgcloud.log(req, 'decodeMessage', { result, body });
     return Promise.resolve(result);
   } catch (error) {
@@ -100,38 +64,5 @@ function task(req, device, body, msg) {
 //  When this Google Cloud Function is triggered, we call main() then task().
 exports.main = event => sgcloud.main(event, task);
 
-//  Unit Test
-/* eslint-disable quotes, no-unused-vars */
-const testEvent = {
-  eventType: "providers/cloud.pubsub/eventTypes/topic.publish",
-  resource: "projects/myproject/topics/sigfox.types.decodeStructuredMessage",
-  timestamp: "2017-05-07T14:30:53.014Z",
-  data: {
-    attributes: {
-    },
-    type: "type.googleapis.com/google.pubsub.v1.PubsubMessage",
-    data: "eyJkZXZpY2UiOiIxQzhBN0UiLCJ0eXBlIjoiZGVjb2RlU3RydWN0dXJlZE1lc3NhZ2UiLCJib2R5Ijp7InV1aWQiOiJhYjBkNDBiZC1kYmM1LTQwNzYtYjY4NC0zZjYxMGQ5NmU2MjEiLCJkYXRldGltZSI6IjIwMTctMDUtMDcgMTQ6MzA6NTEiLCJjYWxsYmFja1RpbWVzdGFtcCI6MTQ5NDE2NzQ1MTI0MCwiZGV2aWNlIjoiMUM4QTdFIiwiZGF0YSI6IjkyMGUwNjI3MjczMTc0MWRiMDUxZTYwMCIsImR1cGxpY2F0ZSI6ZmFsc2UsInNuciI6MTguODYsInN0YXRpb24iOiIwMDAwIiwiYXZnU25yIjoxNS41NCwibGF0IjoxLCJsbmciOjEwNCwicnNzaSI6LTEyMywic2VxTnVtYmVyIjoxNDkyLCJhY2siOmZhbHNlLCJsb25nUG9sbGluZyI6ZmFsc2UsInRpbWVzdGFtcCI6IjE0NzY5ODA0MjYwMDAiLCJiYXNlU3RhdGlvblRpbWUiOjE0NzY5ODA0MjYsInNlcU51bWJlckNoZWNrIjpudWxsfSwicXVlcnkiOnsidHlwZSI6ImFsdGl0dWRlIn0sImhpc3RvcnkiOlt7InRpbWVzdGFtcCI6MTQ5NDE2NzQ1MTI0MCwiZW5kIjoxNDk0MTY3NDUxMjQyLCJkdXJhdGlvbiI6MCwibGF0ZW5jeSI6bnVsbCwic291cmNlIjpudWxsLCJmdW5jdGlvbiI6InNpZ2ZveENhbGxiYWNrIn0seyJ0aW1lc3RhbXAiOjE0OTQxNjc0NTI0NTQsImVuZCI6MTQ5NDE2NzQ1MjgzMywiZHVyYXRpb24iOjAuMywibGF0ZW5jeSI6MS4yLCJzb3VyY2UiOiJwcm9qZWN0cy91bmF0dW1ibGVyL3RvcGljcy9zaWdmb3guZGV2aWNlcy5hbGwiLCJmdW5jdGlvbiI6InJvdXRlTWVzc2FnZSJ9XSwicm91dGUiOlsibG9nVG9Hb29nbGVTaGVldHMiXX0=",
-  },
-  eventId: "121025758478243",
-};
-const testBody = {
-  data: "920e06272731741db051e600",
-  longPolling: false,
-  device: "1C8A7E",
-  ack: false,
-  station: "0000",
-  avgSnr: 15.54,
-  timestamp: "1476980426000",
-  seqNumber: 1492,
-  lat: 1,
-  callbackTimestamp: 1494167451240,
-  lng: 104,
-  duplicate: false,
-  datetime: "2017-05-07 14:30:51",
-  baseStationTime: 1476980426,
-  snr: 18.86,
-  seqNumberCheck: null,
-  rssi: -123,
-  uuid: "ab0d40bd-dbc5-4076-b684-3f610d96e621",
-};
-if (!process.env.FUNCTION_NAME) exports.main(testEvent);
+//  Expose the task function for unit test only.
+exports.task = task;

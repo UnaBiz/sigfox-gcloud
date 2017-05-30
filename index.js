@@ -32,6 +32,11 @@ const loggingLog = logging.log(logName);
 const service = `cloud_function:${functionName}`;
 const serviceContext = { service, version };
 
+function clone(obj) {
+  //  Return a deep copy of this object.
+  return JSON.parse(JSON.stringify(obj));
+}
+
 function log(req, action0, para0) {
   //  Write the action and parameters to Google Cloud Logging for normal log,
   //  or to Google Cloud Error Reporting if para contains error.
@@ -222,6 +227,7 @@ module.exports = {
   functionName,
   isCloudFunc,
   keyFilename,
+  clone,
   log,
   error: log,
   isProcessedMessage,
