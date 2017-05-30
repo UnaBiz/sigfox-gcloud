@@ -12,7 +12,6 @@ const structuredMessage = require('../structuredMessage');  //  Other modules to
 const moduleName = 'decodeStructuredMessage';
 const should = chai.should();
 chai.use(chaiAsPromised);
-
 let req = {};
 
 //  Test data
