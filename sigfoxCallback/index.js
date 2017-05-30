@@ -22,14 +22,30 @@ if (process.env.FUNCTION_NAME) {
 const uuid = require('uuid');
 const sgcloud = require('sigfox-gcloud');
 
-function getResponse(device) {
-  //  Return the standard callback response to Sigfox Cloud, which
-  //  says we will not be returning any downlink data.
+function getResponse(req, device0, body /* , msg */) {
+  //  Compose the callback response to Sigfox Cloud and return as a promise.
+  //  If body.ack is true, then we must wait for the result and return to Sigfox as the downlink data.
+  //  Else tell Sigfox we will not be returning any downlink data.
   //  This lets us route the Sigfox message to another Cloud Function
   //  for processing, without Sigfox Cloud waiting for us.
+  const device = device0 || 'missing_device';
   const response = {};
-  response[device || 'missing_device'] = { noData: true };
-  return response;
+  if (!body.ack) {
+    //  No downlink needed.
+    response[device] = { noData: true };
+    return Promise.resolve(response);
+  }
+  //  Wait for the result.  Must be 8 bytes hex.
+  //  TODO: We hardcode the result for now.
+  const result = '0123456789abcdef';
+  if (result.length !== 16) throw new Error(`Result must be 8 bytes: ${result}`);
+  Array.from(result.toLowerCase()).forEach((s) => {
+    if (s[0] < '0' || s[0] > 'f' || (s[0] > '9' && s[0] < 'a')) {
+      throw new Error(`Invalid hex digit in result: ${s[0]}`);
+    }
+  });
+  response[device] = { downlinkData: result };
+  return Promise.resolve(response);
 }
 
 function saveMessage(req, device, type, body) {
@@ -139,19 +155,19 @@ function parseSIGFOXMessage(req, body0) {  /* eslint-disable no-param-reassign *
 
 function task(req, device, body0, msg) {
   //  Parse the Sigfox fields and send to the queues for device ID and device type.
-  //  Then send the HTTP response back to Sigfox cloud.
+  //  Then send the HTTP response back to Sigfox cloud.  If there is downlink data, wait for the response.
   const res = req.res;
   const type = msg.type;
   //  Convert the text fields into number and boolean values.
   const body = parseSIGFOXMessage(req, body0);
-  //  Get a fixed response to Sigfox Cloud to say we have no uplink data.
-  const response = getResponse(device);
   let result = null;
   //  Send the Sigfox message to the 3 queues.
   return saveMessage(req, device, type, body)
     .then((newMessage) => { result = newMessage; return newMessage; })
-    //  Return the fixed response to Sigfox Cloud.
-    .then(() => res.json(response))
+    //  Wait for the downlink data if any.
+    .then(() => getResponse(req, device, body0, msg))
+    //  Return the response to Sigfox Cloud.
+    .then(response => res.json(response))
     .then(() => result);
 }
 
