@@ -222,6 +222,38 @@ cd sigfox-gcloud
     It's OK to omit the `type` parameter, we may also use routing rules
     to define the processing steps.
 
+### Configuring Sigfox downlink
+
+The `sigfox-gcloud` server can be used to return downlink data to the Sigfox device after processing a callback from the Sigfox cloud.
+If we plan to use the downlink capability, there are two additional things to configure:
+
+1.  In the Device Type settings, set the **Downlink Mode** to **Callback** 
+
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-callback.png" height="768"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-callback.png)
+
+1.  In the Callbacks list under Device Type, there is a hollow circle in the **Downlink** column.  
+    Click the circle and change it to a filled purple circle
+
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-enable.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-enable.png)
+
+1.  The message handling code in `sigfoxCallback` is presently hardcoded to return `0123456789abcdef`.
+    This may be changed if necessary.
+
+    https://github.com/UnaBiz/sigfox-gcloud/blob/master/sigfoxCallback/index.js
+    ```javascript
+    function getResponse(req, device0, body /* , msg */) {
+      //  Compose the callback response to Sigfox Cloud and return as a promise.
+      //  If body.ack is true, then we must wait for the result and return to Sigfox as the downlink data.
+      //  Else tell Sigfox we will not be returning any downlink data.
+    ...
+      //  Wait for the result.  Must be 8 bytes hex.
+      //  TODO: We hardcode the result for now.
+      const result = '0123456789abcdef';
+    ```
+    
+1.  To write a program for the UnaShield Sigfox Shield to send a downlink request, refer to 
+    https://github.com/UnaBiz/unabiz-arduino/wiki/Downlink
+
 ### Defining the Sigfox message processing steps
 
 1.  We define the Sigfox message processing steps as *routes* in the file
@@ -337,7 +369,7 @@ cd sigfox-gcloud
     shows the message queues that have been created
     and how many Cloud Functions are listening to each queue.
            
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-topics.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-topics.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-topics.png" height="764"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-topics.png)
         
 1.  We may configure 
     [Google Cloud Stackdriver Monitoring](https://app.google.stackdriver.com/services/cloud_pubsub/topics) 
@@ -346,6 +378,17 @@ cd sigfox-gcloud
     generate dashboards for monitoring the PubSub message processing queues.       
     
     [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-stackdriver.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-stackdriver.png)
+
+1.  To check whether the downlink was sent successfully from the server to the device, check the Sigfox Backend.
+    Go to the Device page, click Messages and click the down-arrow circle in the Callbacks column.
+    It should show status "Acked"
+
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-acked.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-acked.png)
+
+1.  If the status is "Pending", the Sigfox network is still attempting to push the downlink message to the device.
+
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-pending.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-pending.png)
+        
         
 #  Demo    
     
