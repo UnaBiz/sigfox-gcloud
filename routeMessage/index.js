@@ -38,7 +38,7 @@ function getRoute(req) {
   //  Returns a promise.
 
   //  Return the cached route if not expired.
-  if (defaultRoute && defaultRouteExpiry >= Date.now()) return defaultRoute;
+  if (defaultRoute && defaultRouteExpiry >= Date.now()) return Promise.resolve(defaultRoute);
   let authClient = null;
   let metadata = null;
   //  Get a Google auth client.
