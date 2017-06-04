@@ -12,6 +12,12 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
   crashing will not affect others. Google Cloud PubSub message
   queues are used to pass the Sigfox messages reliably between processing modules.
 
+Other `sigfox-cloud` modules available:
+
+1. [`sigfox-gcloud-ubidots`:](https://github.com/UnaBiz/sigfox-gcloud-ubidots)
+    Adapter for integrating Sigfox devices with the easy and friendly **Ubidots IoT platform**
+
+
 [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg)
 
 # Getting Started
@@ -71,19 +77,6 @@ cd sigfox-gcloud
     
     Your project ID should be displayed after `list project`.
 
-1.  If you plan to run the Google Sheets demo below:
-
-    -   Go to the
-        [Google Cloud IAM](https://console.cloud.google.com/iam-admin/serviceaccounts/project)
-        to create a Google Cloud Service Account.
-        Download the JSON credentials 
-        into `google-credentials.json` in the `sigfox-gcloud` folder.
-
-    -   Go to the 
-        [Google Cloud IAM](https://console.cloud.google.com/iam-admin/iam/project)
-        and ensure the Google Cloud Service Account in `google-credentials.json`
-        has been granted `Editor` rights to your Google Cloud Project
-
 1.  Add the following `sigfox-route` setting to the Google Cloud Project Metadata store.
     This route says that all received Sigfox messages will be processed by the
     two steps `decodeStructuredMessage` and `logToGoogleSheets`.
@@ -122,6 +115,19 @@ cd sigfox-gcloud
     - `sigfox.types.decodeStructuredMessage`, `sigfox.types.logToGoogleSheets`:
       used for sending messages to be decoded and logged in the Sigfox 
       message processing demo below
+
+1.  If you plan to run the Google Sheets demo below:
+
+    -   Go to the
+        [Google Cloud IAM](https://console.cloud.google.com/iam-admin/serviceaccounts/project)
+        to create a Google Cloud Service Account.
+        Download the JSON credentials 
+        into `google-credentials.json` in the `sigfox-gcloud` folder.
+
+    -   Go to the 
+        [Google Cloud IAM](https://console.cloud.google.com/iam-admin/iam/project)
+        and ensure the Google Cloud Service Account in `google-credentials.json`
+        has been granted `Editor` rights to your Google Cloud Project
 
 1. Create a Google Cloud Storage bucket `gs://<projectid>-sigfox-gcloud` to stage our Cloud Functions files 
     during deployment, like this: (change `myproject` to your project ID)
@@ -182,7 +188,7 @@ cd sigfox-gcloud
     
 1.  When prompted to select the callback type, select **Custom Callback**
     
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png" height="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png)
     
 1.  Fill in the callback details as follows:
 
@@ -254,7 +260,7 @@ If we plan to use the downlink capability, there are two additional things to co
 
 1.  In the Device Type settings, set the **Downlink Mode** to **Callback** 
 
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-callback.png" height="768"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-callback.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-callback.png" width="500"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/downlink-callback.png)
 
 1.  In the Callbacks list under Device Type, there is a hollow circle in the **Downlink** column.  
     Click the circle and change it to a filled purple circle
@@ -290,7 +296,7 @@ If we plan to use the downlink capability, there are two additional things to co
     [**Google Cloud Compute Engine Metadata Editor**](https://console.cloud.google.com/compute/metadata).
     Look for the key named `sigfox-route`.
 
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/metadata-route.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/metadata-route.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/metadata-route.png" width="640"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/metadata-route.png)
 
 1.    A route looks like
 
@@ -374,7 +380,7 @@ If we plan to use the downlink capability, there are two additional things to co
     shows the message queues that have been created
     and how many Cloud Functions are listening to each queue.
            
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-topics.png" height="764"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-topics.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-topics.png" width="500"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/pubsub-topics.png)
         
 1.  We may configure 
     [Google Cloud Stackdriver Monitoring](https://app.google.stackdriver.com/services/cloud_pubsub/topics) 
