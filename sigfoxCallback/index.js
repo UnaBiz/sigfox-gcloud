@@ -77,7 +77,8 @@ function saveMessage(req, device, type, body) {
   //  Wait for the messages to be published to the queues.
   return Promise.all(promises)
     //  Return the message with dispatch flag set so we don't resend.
-    .then(() => Object.assign({}, message, { isDispatched: true }));
+    .then(() => Object.assign({}, message, { isDispatched: true }))
+    .catch((error) => { throw error; });
 }
 
 function parseBool(s) {
@@ -168,7 +169,8 @@ function task(req, device, body0, msg) {
     .then(() => getResponse(req, device, body0, msg))
     //  Return the response to Sigfox Cloud.
     .then(response => res.json(response))
-    .then(() => result);
+    .then(() => result)
+    .catch((error) => { throw error; });
 }
 
 exports.main = (req0, res) => {
@@ -207,5 +209,7 @@ exports.main = (req0, res) => {
   return runTask
     //  Dispatch will be skipped because isDispatched is set.
     .then(() => sgcloud.dispatchMessage(req, updatedMessage, device))
-    .then(result => sgcloud.log(req, 'end', { result, device, body, event, updatedMessage }));
+    .then(result => sgcloud.log(req, 'end', { result, device, body, event, updatedMessage }))
+    //  Suppress all errors else Google will retry the message.
+    .catch(error => sgcloud.log(req, 'end', { error, device, body, event, updatedMessage }));
 };

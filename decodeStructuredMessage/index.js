@@ -52,7 +52,8 @@ function task(req, device, body, msg) {
   //  e.g. ctr (counter), lig (light level), tmp (temperature).
   return decodeMessage(req, body)
     //  Return the message with the body updated.
-    .then(updatedBody => Object.assign({}, msg, { body: updatedBody }));
+    .then(updatedBody => Object.assign({}, msg, { body: updatedBody }))
+    .catch((error) => { throw error; });
 }
 
 //  End Message Processing Code

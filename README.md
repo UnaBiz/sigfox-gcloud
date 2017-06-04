@@ -28,11 +28,12 @@ cd sigfox-gcloud
 
 1. Create a Google Cloud Platform project. Assume the project ID is `myproject`.
 
-    [*GO TO THE PROJECTS PAGE*](https://console.cloud.google.com/project?_ga=1.185886880.864313361.1477837820)
+    [*GO TO THE PROJECTS PAGE*](https://console.cloud.google.com/project)
     
-1. Create a file named `.env` in the `sigfox-gcloud` folder.  Edit the file
-   and populate the `GCLOUD_PROJECT` variable with your project ID like this 
-   (change `myproject` to the project ID):
+1. Open a bash command prompt.  For Windows, open "Bash on Ubuntu on Windows."  
+    Create a file named `.env` in the `sigfox-gcloud` folder  
+    and populate the `GCLOUD_PROJECT` variable with your project ID like this 
+    (change `myproject` to your project ID):
 
     ```bash
     echo GCLOUD_PROJECT=myproject >.env
@@ -42,15 +43,15 @@ cd sigfox-gcloud
 
     [*ENABLE BILLING*](https://support.google.com/cloud/answer/6293499#enable-billing)
 
-1. Enable the Cloud Functions and Cloud Pub/Sub APIs.
+1. Enable the Cloud Functions, Cloud Pub/Sub, Compute Engine, Stackdriver Logging APIs.
 
-    [*ENABLE THE APIS*](https://console.cloud.google.com/flows/enableapi?apiid=cloudfunctions,pubsub)
+    [*ENABLE THE APIS*](https://console.cloud.google.com/flows/enableapi?apiid=cloudfunctions,pubsub,logging,compute_component)
 
 1. Install and initialize the Google Cloud SDK.
 
     [*GOOGLE CLOUD SDK*](https://cloud.google.com/sdk/docs/)
 
-    If you are running Ubuntu on Windows 10, open an Ubuntu command prompt and follow the Ubuntu installation steps:
+    If you are running Ubuntu on Windows 10, open "Bash on Ubuntu on Windows" and follow the Ubuntu installation steps:
   
     https://cloud.google.com/sdk/downloads#apt-get
 
@@ -61,17 +62,27 @@ cd sigfox-gcloud
     gcloud components install beta
     ```
 
-1. Create a Google Cloud Service Account and download the JSON credentials
-    into `google-credentials.json` in the `sigfox-gcloud` folder.
-  
-    To create a service account, go to the
-    [Google Cloud IAM.](https://console.cloud.google.com/iam-admin/serviceaccounts/project)
-  
-1. Ensure the Google Cloud Service Account in `google-credentials.json`
-   has been granted `Editor` rights to the Google Cloud Project `myproject`
+1. Switch to the project you have created: (change `myproject` to your project ID)
 
-    To configure the access rights, go to the 
-    [Google Cloud IAM.](https://console.cloud.google.com/iam-admin/iam/project)
+    ```bash
+    gcloud config set project myproject
+    gcloud config list project
+    ```
+    
+    Your project ID should be displayed after `list project`.
+
+1.  If you plan to run the Google Sheets demo below:
+
+    -   Go to the
+        [Google Cloud IAM](https://console.cloud.google.com/iam-admin/serviceaccounts/project)
+        to create a Google Cloud Service Account.
+        Download the JSON credentials 
+        into `google-credentials.json` in the `sigfox-gcloud` folder.
+
+    -   Go to the 
+        [Google Cloud IAM](https://console.cloud.google.com/iam-admin/iam/project)
+        and ensure the Google Cloud Service Account in `google-credentials.json`
+        has been granted `Editor` rights to your Google Cloud Project
 
 1. Create the Google PubSub message queues that we will use to route the
    Sigfox messages between the Cloud Functions:
@@ -82,7 +93,7 @@ cd sigfox-gcloud
     gcloud beta pubsub topics create sigfox.types.logToGoogleSheets
     ```
     
-   Optionally, we may run these commands to create the PubSub message queues
+   **Optional:** We may create the PubSub message queues
    for each device ID and device type that we wish to support.  For example, to
    support device ID `1A234` and device type `gps`, we would execute:
 
@@ -105,22 +116,21 @@ cd sigfox-gcloud
       message processing demo below
 
 1. Create a Google Cloud Storage bucket `gs://<projectid>-sigfox-gcloud` to stage our Cloud Functions files 
-    during deployment, like this:    
+    during deployment, like this: (change `myproject` to your project ID)
    
     ```bash
     gsutil mb gs://myproject-sigfox-gcloud
     ```
 
-1. Deploy all the included Cloud Functions with the script:
+1. Deploy all the included Cloud Functions (including the demo functions) with the `deployall.sh` script:
 
     ```bash
-    scripts/deployall.sh  
+    chmod +x */*.sh
+    scripts/deployall.sh
     ```
 
-1. Go to the **Google Cloud Functions Console**
-
-    https://console.cloud.google.com/functions/list
-
+1. Go to the **[Google Cloud Functions Console](https://console.cloud.google.com/functions/list)**
+    
     There should 4 Cloud Functions defined<br>
     Click the **`sigfoxCallback`** Cloud Function
     
@@ -148,83 +158,90 @@ cd sigfox-gcloud
 
     https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
 
-1. Log on to the **Sigfox Backend Portal**<br>
+1. Log on to the [**Sigfox Backend Portal**](https://backend.sigfox.com)<br>
     Click **"Device Type"**<br>
-    Select your Device Type<br>
-    Click **"Callbacks"**<br>
-    Click **"New"**
+    Click the Device Type that you wish to connect to Google Cloud<br>
+    
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png)
+    
+1.  Click **"Callbacks"**
+
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type-callbacks.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png)
+
+1.  Click **"New"**
 
     [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png)
     
-1.  When prompted to select the callback type: "(1) Custom Callback (2) AWS (3) Azure", 
-    please select **Custom Callback.**
+1.  When prompted to select the callback type, select **Custom Callback**
+    
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png" height="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png)
     
 1.  Fill in the callback details as follows:
 
     [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback.png)
     
-    **URL Pattern**: <br>
-    Enter the **Sigfox Callback URL**
-   that we have copied earlier.  It should look like:   
-   `https://us-central1-myproject.cloudfunctions.net/sigfoxCallback`          
+    -  **URL Pattern**: <br>
+        Enter the **Sigfox Callback URL**
+        that we have copied earlier.  It should look like:   
+        `https://us-central1-myproject.cloudfunctions.net/sigfoxCallback`          
 
-    **Content Type**: <br>
-    **`application/json`**
+    -  **Content Type**: <br>
+        **`application/json`**
 
-1. Set the **Body** (Sigfox message payload) as:
+    - Set the **Body** (Sigfox message payload) as:
 
-    ```json
-    {                             
-     "device" : "{device}",        
-     "data" : "{data}",            
-     "time" : "{time}",            
-     "duplicate": "{duplicate}",   
-     "snr": "{snr}",               
-     "station": "{station}",       
-     "avgSnr": "{avgSnr}",         
-     "lat": "{lat}",               
-     "lng": "{lng}",               
-     "rssi": "{rssi}",             
-     "seqNumber": "{seqNumber}",   
-     "ack": "{ack}",               
-     "longPolling": "{longPolling}"
-    }                             
-    ```
-
-    With this setting, the Sigfox cloud will deliver
-    messages to our server in JSON format like this:
+        ```json
+        {                             
+         "device" : "{device}",        
+         "data" : "{data}",            
+         "time" : "{time}",            
+         "duplicate": "{duplicate}",   
+         "snr": "{snr}",               
+         "station": "{station}",       
+         "avgSnr": "{avgSnr}",         
+         "lat": "{lat}",               
+         "lng": "{lng}",               
+         "rssi": "{rssi}",             
+         "seqNumber": "{seqNumber}",   
+         "ack": "{ack}",               
+         "longPolling": "{longPolling}"
+        }                             
+        ```
     
-    ```json
-    {
-      "device":"1A2345",
-      "data":"920e82002731b01db0512201",
-      "time":"1476980426",
-      "duplicate":"false",
-      "snr":"18.86",
-      "station":"1234",
-      "avgSnr":"15.54",
-      "lat":"1",
-      "lng":"104",
-      "rssi":"-123.00",
-      "seqNumber":"1492",
-      "ack":"false",
-      "longPolling":"false"
-    }
-    ```
+        With this setting, the Sigfox cloud will deliver
+        messages to our server in JSON format like this:
+        
+        ```json
+        {
+          "device":"1A2345",
+          "data":"920e82002731b01db0512201",
+          "time":"1476980426",
+          "duplicate":"false",
+          "snr":"18.86",
+          "station":"1234",
+          "avgSnr":"15.54",
+          "lat":"1",
+          "lng":"104",
+          "rssi":"-123.00",
+          "seqNumber":"1492",
+          "ack":"false",
+          "longPolling":"false"
+        }
+        ```
 
-1.  We may set the callback type in the `sigfoxCallback` URL by
-    passing the `type` parameter in the URL like this:
+    -   **Optional:** We may set the callback type in the `sigfoxCallback` URL by
+        passing the `type` parameter in the URL like this:
 
-    ```
-    https://us-central1-myproject.cloudfunctions.net/sigfoxCallback?type=gps
-    ```
+        ```
+        https://us-central1-myproject.cloudfunctions.net/sigfoxCallback?type=gps
+        ```
+    
+        It's OK to omit the `type` parameter, we may also use routing rules
+        to define the processing steps.
 
-    It's OK to omit the `type` parameter, we may also use routing rules
-    to define the processing steps.
+### Optional: Configuring Sigfox downlink
 
-### Configuring Sigfox downlink
-
-The `sigfox-gcloud` server can be used to return downlink data to the Sigfox device after processing a callback from the Sigfox cloud.
+**Optional:** The `sigfox-gcloud` server can be used to return downlink data to the Sigfox device after processing a callback from the Sigfox cloud.
 If we plan to use the downlink capability, there are two additional things to configure:
 
 1.  In the Device Type settings, set the **Downlink Mode** to **Callback** 
@@ -254,7 +271,7 @@ If we plan to use the downlink capability, there are two additional things to co
 1.  To write a program for the UnaShield Sigfox Shield to send a downlink request, refer to 
     https://github.com/UnaBiz/unabiz-arduino/wiki/Downlink
 
-### Defining the Sigfox message processing steps
+### Optional: Defining the Sigfox message processing steps
 
 1.  We define the Sigfox message processing steps as *routes* in the file
 
@@ -350,6 +367,12 @@ If we plan to use the downlink capability, there are two additional things to co
 1.  See this for the definition of structured messages:
 
     https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
+
+1.  To configure `sigfox-route` from the command line, enter
+
+    ```bash
+    gcloud compute project-info add-metadata --metadata=^:^sigfox-route=decodeStructuredMessage,logToGoogleSheets
+    ```
 
 ### Testing the Sigfox server
 
@@ -695,7 +718,3 @@ If we plan to use the downlink capability, there are two additional things to co
 
 1. To test, send a Sigfox message from the device ID specified above, 
     e.g. `1A2345`.
-
-# Getting the downlink response from Sigfox
-
-Refer to https://github.com/UnaBiz/unabiz-arduino/wiki/Downlink

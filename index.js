@@ -13,11 +13,12 @@ require('dotenv').load();
 const projectId = process.env.GCLOUD_PROJECT;    //  Google Cloud project ID.
 const functionName = process.env.FUNCTION_NAME || 'unknown_function';
 const isCloudFunc = !!process.env.FUNCTION_NAME;  //  True if running in Google Cloud Function.
+const path = require('path');
 
 //  Assume that the Google Service Account credentials are present in this file.
 //  This is needed for calling Google Cloud PubSub, Logging, Trace, Debug APIs
 //  on Linux / MacOS / Ubuntu on Windows.  Assume it's in the main folder for the app.
-const keyFilename = [process.cwd(), 'google-credentials.json'].join('/');
+const keyFilename = path.join(process.cwd(), 'google-credentials.json');
 //  If we are running in the Google Cloud, no credentials necessary.
 const googleCredentials = isCloudFunc ? null : { projectId, keyFilename };
 
@@ -87,18 +88,28 @@ function publishMessage(req, oldMessage, device, type) {
   //  Publish the message to the device or message type queue in PubSub.
   //  If device is non-null, publish to sigfox.devices.<<device>>
   //  If type is non-null, publish to sigfox.types.<<type>>
-  //  Returns a promise for the published message.
+  //  If message contains options.unpackBody=true, then send message.body as the root of the
+  //  message.  This is used for sending log messages to BigQuery via Google Cloud DataFlow.
+  //  The caller must have called server/bigquery/validateLogSchema.
+  //  Returns a promise for the PubSub topic.publish result.
   const topicName = device
     ? `sigfox.devices.${device}`
     : type
       ? `sigfox.types.${type}`
       : 'sigfox.devices.missing_device';
   const topic = pubsub.topic(topicName);
-  const message = Object.assign({}, oldMessage,
+  let message = Object.assign({}, oldMessage,
     device ? { device: (device === 'all') ? oldMessage.device : device }
       : type ? { type }
       : { device: 'missing_device' });
   if (device === 'all') message.device = oldMessage.device;
+
+  //  If message contains options.unpackBody=true, then send message.body as the root of the
+  //  message.  This is used for sending log messages to BigQuery via Google Cloud DataFlow.
+  //  The caller must have called server/bigquery/validateLogSchema.
+  if (message.options && message.options.unpackBody) {
+    message = message.body;
+  }
   const destination = topicName;
   return topic.publish(message)
     .then(result => log(req, 'publishMessage',
@@ -186,7 +197,8 @@ function runTask(req, event, task, device, body, message) {
     .then(result => log(req, 'result', { result, device, body, event, message }))
     .then((result) => { updatedMessage = result; return result; })
     .catch(error => log(req, 'failed', { error, device, body, event, message }))
-    .then(() => dispatchMessage(req, updatedMessage, device));
+    .then(() => dispatchMessage(req, updatedMessage, device))
+    .catch((error) => { throw error; });
 }
 
 function main(event, task) {
@@ -219,7 +231,9 @@ function main(event, task) {
         : runTask(req, event, task, device, body, message)
     ))
     //  Log the final result i.e. the dispatched message.
-    .then(result => log(req, 'end', { result, device, body, event, message }));
+    .then(result => log(req, 'end', { result, device, body, event, message }))
+    //  Suppress all errors else Google will retry the message.
+    .catch(error => log(req, 'end', { error, device, body, event, message }));
 }
 
 module.exports = {
