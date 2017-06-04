@@ -30,7 +30,7 @@ function getResponse(req, device0, body /* , msg */) {
   //  for processing, without Sigfox Cloud waiting for us.
   const device = device0 || 'missing_device';
   const response = {};
-  if (!body.ack) {
+  if (body.ack === false || body.ack === 'false') {
     //  No downlink needed.
     response[device] = { noData: true };
     return Promise.resolve(response);

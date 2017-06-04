@@ -51,11 +51,12 @@ function getRoute(req) {
     .then(() => googlemetadata.convertMetadata(req, metadata))
     //  Return the default route from the metadata.
     .then(metadataObj => metadataObj[defaultRouteKey])
-    .then((result) => {
+    .then((res) => {
       //  Cache for 10 seconds.
       //  result looks like 'decodeStructuredMessage,logToGoogleSheets'
       //  Convert to ['decodeStructuredMessage', 'logToGoogleSheets']
-      defaultRoute = result.split(' ').join('').split(',');  //  Remove spaces.
+      const result = res.split(' ').join('').split(',');  //  Remove spaces.
+      defaultRoute = result;
       defaultRouteExpiry = Date.now() + routeExpiry;
       sgcloud.log(req, 'getRoute', { result });
       return result;
@@ -69,7 +70,9 @@ function getRoute(req) {
 }
 
 //  Fetch route upon startup.  In case of error, try later.
-getRoute({}).catch(() => 'OK');
+setTimeout(() =>
+  getRoute({}).catch(() => 'OK'),
+  1000);  //  Must wait 1 second or will hit network errors.
 
 function routeMessage(req, device, body, msg0) {
   //  Set the message route according to the map and device ID.

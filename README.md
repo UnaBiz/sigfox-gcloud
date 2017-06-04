@@ -666,5 +666,8 @@ If we plan to use the downlink capability, there are two additional things to co
      ```
      decodeStructuredMessage, logToGoogleSheets
      ```
+    
+    The new route will take effect in 10 seconds when the
+    route cache is refreshed.
 
 1. To test, send a Sigfox message from your Sigfox device.
