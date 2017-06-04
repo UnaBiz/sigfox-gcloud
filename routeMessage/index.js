@@ -19,52 +19,75 @@ if (process.env.FUNCTION_NAME) {
   require('@google-cloud/debug-agent').start();
 }
 const sgcloud = require('sigfox-gcloud');
+const googlemetadata = require('sigfox-gcloud/lib/google-metadata');
 
-//  Map device ID to route [ msgType1, msgType2, .... ]
-//  This is hardcoded here so it can never fail e.g. due to database failure.
-const mapDeviceToRoute = require('./routes');
+//  A route is an array of strings.  Each string indicates the next processing step,
+//  e.g. ['decodeStructuredMessage', 'logToGoogleSheets'].
 
-//  This validated map will be used to map device ID to route.
-let validatedMapDeviceToRoute = null;
+//  The route is stored in this key in the Google Cloud Metadata store.
+const defaultRouteKey = 'sigfox-route';
+const routeExpiry = 10 * 1000;  //  Routes expire in 10 seconds.
 
-function validateMap(req) {
-  //  Construct an efficient map to map device ID to route.
-  if (validatedMapDeviceToRoute) return validatedMapDeviceToRoute;
-  const mapCopy = JSON.parse(JSON.stringify(mapDeviceToRoute));
-  const map = {};
-  for (const deviceRoute of mapCopy) {
-    const devices = deviceRoute.devices;
-    const route = deviceRoute.route;
-    for (const device0 of devices) {
-      //  Map the device ID to the route.
-      const device = device0.trim().toUpperCase();
-      if (!map[device]) map[device] = [];
-      for (const type of route) {
-        //  Don't map if already mapped.
-        if (map[device].indexOf(type) >= 0) continue;
-        map[device].push(type);
-      }
-    }
-  }
-  sgcloud.log(req, 'validateMap', { map });
-  validatedMapDeviceToRoute = map;
-  return validatedMapDeviceToRoute;
+let defaultRoute = null;        //  The cached route.
+let defaultRouteExpiry = null;  //  Cache expiry timestamp.
+
+function getRoute(req) {
+  //  Fetch the route from the Google Cloud Metadata store, which is easier
+  //  to edit.  Previously we used a hardcoded route.
+  //  Refresh the route every 10 seconds in case it has been updated.
+  //  Returns a promise.
+
+  //  Return the cached route if not expired.
+  if (defaultRoute && defaultRouteExpiry >= Date.now()) return defaultRoute;
+  let authClient = null;
+  let metadata = null;
+  //  Get a Google auth client.
+  return googlemetadata.authorize(req)
+    .then((res) => { authClient = res; })
+    //  Get the project metadata.
+    .then(() => googlemetadata.getProjectMetadata(req, authClient))
+    .then((res) => { metadata = res; })
+    //  Convert the metadata to a JavaScript object.
+    .then(() => googlemetadata.convertMetadata(req, metadata))
+    //  Return the default route from the metadata.
+    .then(metadataObj => metadataObj[defaultRouteKey])
+    .then((result) => {
+      //  Cache for 10 seconds.
+      //  result looks like 'decodeStructuredMessage,logToGoogleSheets'
+      //  Convert to ['decodeStructuredMessage', 'logToGoogleSheets']
+      defaultRoute = result.split(' ').join('').split(',');  //  Remove spaces.
+      defaultRouteExpiry = Date.now() + routeExpiry;
+      sgcloud.log(req, 'getRoute', { result });
+      return result;
+    })
+    .catch((error) => {
+      sgcloud.log(req, 'getRoute', { error });
+      //  In case of error, reuse the previous route if any.
+      if (defaultRoute) return defaultRoute;
+      throw error;
+    });
 }
-validateMap({});  //  Construct the map upon startup.
+
+//  Fetch route upon startup.  In case of error, try later.
+getRoute({}).catch(() => 'OK');
 
 function routeMessage(req, device, body, msg0) {
   //  Set the message route according to the map and device ID.
   //  message = { device, type, body, query }
   //  Returns a promise.
   const msg = Object.assign({}, msg0);
-  //  log(req, 'routeMessage', { device, body, msg });
-  const map = validateMap(req);
-  const route = map[device] || [];
-  //  Must clone the route because it might be mutated accidentally.
-  msg.route = JSON.parse(JSON.stringify(route));
-  const result = msg;
-  sgcloud.log(req, 'routeMessage', { result, route, device, body, msg });
-  return Promise.resolve(result);
+  return getRoute(req)
+    .then((route) => {
+      //  Must clone the route because it might be mutated accidentally.
+      msg.route = JSON.parse(JSON.stringify(route || []));
+      const result = msg;
+      sgcloud.log(req, 'routeMessage', { result, route, device, body, msg });
+      return result;
+    })
+    .catch((error) => {
+      sgcloud.log(req, 'routeMessage', { error, device, body, msg });
+      throw error;
+    });
 }
 
 function task(req, device, body, msg) {

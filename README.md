@@ -84,6 +84,14 @@ cd sigfox-gcloud
         and ensure the Google Cloud Service Account in `google-credentials.json`
         has been granted `Editor` rights to your Google Cloud Project
 
+1.  Add the following `sigfox-route` setting to the Google Cloud Project Metadata store.
+    This route says that all received Sigfox messages will be processed by the
+    two steps `decodeStructuredMessage` and `logToGoogleSheets`.
+
+    ```bash
+    gcloud compute project-info add-metadata --metadata=^:^sigfox-route=decodeStructuredMessage,logToGoogleSheets
+    ```
+
 1. Create the Google PubSub message queues that we will use to route the
    Sigfox messages between the Cloud Functions:
    
@@ -162,11 +170,11 @@ cd sigfox-gcloud
     Click **"Device Type"**<br>
     Click the Device Type that you wish to connect to Google Cloud<br>
     
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type.png)
     
 1.  Click **"Callbacks"**
 
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type-callbacks.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type-callbacks.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type-callbacks.png)
 
 1.  Click **"New"**
 
@@ -174,7 +182,7 @@ cd sigfox-gcloud
     
 1.  When prompted to select the callback type, select **Custom Callback**
     
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png" height="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback-new.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png" height="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png)
     
 1.  Fill in the callback details as follows:
 
@@ -273,14 +281,23 @@ If we plan to use the downlink capability, there are two additional things to co
 
 ### Optional: Defining the Sigfox message processing steps
 
-1.  We define the Sigfox message processing steps as *routes* in the file
+1.  We define the Sigfox message processing steps as a **route** in the 
+    **Google Cloud Common Instance Metadata Store.**
+    This metadata store is a key-value store that's shared by all 
+    programs running in the same Google Cloud project.
+      
+    You may inspect and update the route through the 
+    [**Google Cloud Compute Engine Metadata Editor**](https://console.cloud.google.com/compute/metadata).
+    Look for the key named `sigfox-route`.
 
-    [`routeMessage/routes.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/routeMessage/routes.js)
- 
-    Each route looks like
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/metadata-route.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/metadata-route.png)
+
+1.    A route looks like
+
     ```
-    [ decodeStructuredMessage, logToGoogleSheets, ... ]
+    decodeStructuredMessage, logToGoogleSheets, ...
     ```
+    
     in which `decodeStructuredMessage` and `logToGoogleSheets` are the Google Cloud Functions to be called sequentially.
     These Cloud Functions will subscribe to the following Google PubSub queues to listen for Sigfox messages:
     
@@ -325,54 +342,19 @@ If we plan to use the downlink capability, there are two additional things to co
       `sigfox.devices.all` and picks up the new message
     
     - Cloud Function `routeMessage` assigns a route to the 
-      Sigfox message using a rule like this: 
-      (see [`routeMessage/routes.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/routeMessage/routes.js))
+      Sigfox message by reading the `sigfox-route` from the Google Compute Metadata Store. 
+      The route looks like this: 
 
-    ```javascript
-    //  Each element of this array maps device IDs to route
-    //  [ msgType1, msgType2, .... ]
-    module.exports = [
-      { //  This is the first device IDs -> route.
-        devices:
-        [ //  UnaShield training device IDs for Temasek Polytechnic.
-          'UTDEMO1',
-          '1C88B1',
-          '1C8A52',
-          '1C8A50',
-          '1C8895',
-          '1C8891',
-          '1C88EC',
-          '1C8A31',
-          '1C8A65',
-          '1C8A7E',
-        ],
-        route:
-        [ //  Route the Sigfox messages for the above device IDs like this:
-          //  Decode the structured sensor data message...
-          decodeStructuredMessage,
-          //  Then log the decoded Sigfox message to Google Sheets.
-          logToGoogleSheets,
-          //  This enables the Temasek Polytechnic students to see the
-          //  sensor data for their UnaShield dev kits properly decoded
-          //  and displayed in a Google Sheets.
-        ],
-      },
-      //  Add your device IDs -> route here.
-    ];
-    ```
-    
-    - This rule routes the message to functions `decodeStructuredMessage` and `logToGoogleSheets`
+      ```
+      decodeStructuredMessage, logToGoogleSheets
+      ```
+
+    - This route sends the message to functions `decodeStructuredMessage` and `logToGoogleSheets`
       via the queues `sigfox.types.decodeStructuredMessage` and `sigfox.types.logToGoogleSheets`
 
 1.  See this for the definition of structured messages:
 
     https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
-
-1.  To configure `sigfox-route` from the command line, enter
-
-    ```bash
-    gcloud compute project-info add-metadata --metadata=^:^sigfox-route=decodeStructuredMessage,logToGoogleSheets
-    ```
 
 ### Testing the Sigfox server
 
@@ -469,25 +451,8 @@ If we plan to use the downlink capability, there are two additional things to co
 
     `https://docs.google.com/spreadsheets/d/1OtlfVx6kibMxnZoSwq76Vod8HhaK5tzBIBAewtZlbXM/edit?usp=sharing`
 
-1. To test the Sigfox message processing routes with your device ID
-    say `1A2345`, edit the file
-    [`routeMessage/routes.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/routeMessage/routes.js)
-
-    Add the device to the list of devices:
-    
-    ```javascript
-    //  Each element of this array maps device IDs to route
-    //  [ msgType1, msgType2, .... ]
-    module.exports = [
-      { //  This is the first device IDs -> route.
-        devices:
-        [
-          '1A2345',  //  Our device ID.
-           ...
-    ```
-    
 1. To test the structured message decoding, send a Sigfox message
-    from device ID `1A2345` with the `data` field set to:
+    from your Sigfox device with the `data` field set to:
 
     ```
     920e82002731b01db0512201
@@ -694,27 +659,12 @@ If we plan to use the downlink capability, there are two additional things to co
     ./deploy.sh
     ```
 
-1. Update the Sigfox message processing routes in 
-    [`routeMessage/routes.js`](https://github.com/UnaBiz/sigfox-gcloud/blob/master/routeMessage/routes.js)
+1. Update the Sigfox message processing route `sigfox-route` in
+    [**Google Cloud Compute Engine Metadata Editor**](https://console.cloud.google.com/compute/metadata).
+    Add the new processing step to the list of steps:
 
-    To trigger a named function `myfunction` by device ID `1A2345`, 
-    we may define the route like this:
-    
-    ```javascript
-    const myfunction = 'myfunction';
-    ...
-    module.exports = [
-      { //  This is the first device IDs -> route.
-        devices: [ ... ],
-        route: [ ... ],
-      },
-      //  Add your device IDs -> route here.
-      {
-        devices: [ '1A2345' ],  //  Our device ID.
-        route: [ myfunction ],  //  Our cloud function.
-      },
-    ];
-    ```
+     ```
+     decodeStructuredMessage, logToGoogleSheets
+     ```
 
-1. To test, send a Sigfox message from the device ID specified above, 
-    e.g. `1A2345`.
+1. To test, send a Sigfox message from your Sigfox device.

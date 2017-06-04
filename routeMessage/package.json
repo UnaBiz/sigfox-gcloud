@@ -16,7 +16,8 @@
     "@google-cloud/logging": "^1.0.0",
     "@google-cloud/trace-agent": "^1.1.0",
     "@google-cloud/pubsub": "0.10.0",
-    "sigfox-gcloud": ">=0.0.8",
+    "googleapis": "^19.0.0",
+    "sigfox-gcloud": ">=0.0.24",
     "safe-buffer": "5.0.1",
     "node-fetch": "^1.6.3",
     "json-stringify-safe": "^5.0.1"

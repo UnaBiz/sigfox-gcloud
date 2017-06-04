@@ -17,8 +17,8 @@ if (process.env.FUNCTION_NAME) {
 const sgcloud = require('sigfox-gcloud');
 const googlesheets = require('sigfox-gcloud/lib/googlesheets');
 
-//  Upon startup, get a Google API token for Google Drive and Sheets access.
-googlesheets.getGoogleAuth({});
+//  TODO: Upon startup, get a Google API token for Google Drive and Sheets access.
+//  googlesheets.getGoogleAuth({}).catch(() => 'OK');  //  Ignore errors.
 
 function task(req, device, body, msg) {
   //  The task for this Google Cloud Function:
