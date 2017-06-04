@@ -69,10 +69,10 @@ function getRoute(req) {
     });
 }
 
-//  Fetch route upon startup.  In case of error, try later.
-setTimeout(() =>
-  getRoute({}).catch(() => 'OK'),
-  1000);  //  Must wait 1 second or will hit network errors.
+//  TODO: Fetch route upon startup.  In case of error, try later.
+// setTimeout(() =>
+//  getRoute({}).catch(() => 'OK'),
+//  1000);  //  Must wait 1 second or will hit network errors.
 
 function routeMessage(req, device, body, msg0) {
   //  Set the message route according to the map and device ID.
