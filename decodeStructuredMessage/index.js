@@ -31,8 +31,8 @@ const structuredMessage = require('./structuredMessage');
 function decodeMessage(req, body) {
   //  Decode the packed binary SIGFOX message body data e.g. 920e5a00b051680194597b00
   //  2 bytes name, 2 bytes float * 10, 2 bytes name, 2 bytes float * 10, ...
-  //  Returns a promise for the updated body.
-  if (!body || !body.data) return Promise.resolve(null);
+  //  Returns a promise for the updated body.  If no body available, return {}.
+  if (!body || !body.data) return Promise.resolve({});
   try {
     const decodedData = structuredMessage.decodeMessage(body.data);
     const result = Object.assign({}, body, decodedData);

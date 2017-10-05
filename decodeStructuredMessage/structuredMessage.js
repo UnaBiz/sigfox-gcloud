@@ -22,12 +22,12 @@ function decodeText(encodedText0) { /* eslint-disable no-bitwise, operator-assig
     encodedText = encodedText >> 5;
   }
   //  Look for the terminating null and decode name with 1, 2 or 3 letters.
-  /* eslint-disable no-nested-ternary */
-  const result = text[2] ? String.fromCharCode(text[0], text[1], text[2])
-    : text[1] ? String.fromCharCode(text[0], text[1])
-      : String.fromCharCode(text[0], text[1]);
-  /* eslint-enable no-nested-ternary */
-  return result;
+  //  Skip invalid chars.
+  return [
+    (text[0] >= 48 && text[0] <= 122) ? String.fromCharCode(text[0]) : '',
+    (text[1] >= 48 && text[1] <= 122) ? String.fromCharCode(text[1]) : '',
+    (text[2] >= 48 && text[2] <= 122) ? String.fromCharCode(text[2]) : '',
+  ].join('');
 } /* eslint-enable no-bitwise, operator-assignment */
 
 function decodeMessage(data, textFields) { /* eslint-disable no-bitwise, operator-assignment */
@@ -37,6 +37,8 @@ function decodeMessage(data, textFields) { /* eslint-disable no-bitwise, operato
   //  If the message contains text fields, provide the field names in textFields as an array,
   //  e.g. ['d1', 'd2, 'd3'].
   if (!data) return {};
+  //  Messages must be either 8, 16 or 24 chars (4, 8 or 12 bytes).
+  if (data.length !== 8 && data.length !== 16 && data.length !== 24) return {};
   try {
     const result = {};
     for (let i = 0; i < data.length; i = i + 8) {
