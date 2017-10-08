@@ -25,7 +25,6 @@ const isProduction = (process.env.NODE_ENV === 'production');  //  True on produ
 const util = require('util');
 const path = require('path');
 const uuidv4 = require('uuid/v4');
-const isCircular = require('is-circular');
 const stringify = require('json-stringify-safe');
 
 //  Assume that the Google Service Account credentials are present in this file.
@@ -46,7 +45,8 @@ function sleep(req, res, millisec) {
 }
 
 function removeNulls(obj0, level) {
-  //  Remove null values recursively.  Skip circular references.
+  //  Remove null values recursively.  We don't remove circular references
+  //  because Google Cloud Logging remove circular references.
   if (level > 3) return '(truncated)';
   const obj = Object.assign({}, obj0);
   for (const key of Object.keys(obj)) {
@@ -55,18 +55,6 @@ function removeNulls(obj0, level) {
     if (val === null || val === undefined) {
       delete obj[key];
     } else if (typeof val === 'object' && !Array.isArray(val)) {
-      //  Val is a non-array object.
-      let circular = true;
-      try {
-        circular = isCircular(val);
-        // eslint-disable-next-line no-empty
-      } catch (err) {}
-      if (circular) {
-        //  Remove circular references.
-        delete obj[key];
-        console.error(`Dropped circular reference ${key}`);
-        continue;
-      }
       obj[key] = removeNulls(val, (level || 0) + 1);
     }
   }
@@ -84,7 +72,7 @@ function publishJSON(req, topic, obj) {
   //  Publish the object as a JSON message to the PubSub topic.
   //  Returns a promise.
   if (!topic) return Promise.resolve(null);
-  return topic.publisher().publish(new Buffer(JSON.stringify(obj)))
+  return topic.publisher().publish(new Buffer(stringify(obj)))
     .catch(error => { // eslint-disable-next-line no-use-before-define
       log(req, 'publishJSON', { error, topic, obj });
       throw error;
@@ -93,6 +81,7 @@ function publishJSON(req, topic, obj) {
 
 function logQueue(req, action, para0) { /* eslint-disable global-require, no-param-reassign */
   //  Write log to a PubSub queue for easier analysis.
+  //  TODO: Reuse the PubSub clients to write batches of records.
   try {
     if (module.exports.logQueueConfig.length === 0) return Promise.resolve(null);
     const now = Date.now();
@@ -144,20 +133,40 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
 const logTasks = [];
 let taskCount = 0;
 
+const batchSize = (flush) => (flush ? 4 : 4);
+
 function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
   //  If flush is true, flush all logs without waiting for the tick, i.e. when quitting.
   if (logTasks.length === 0) return Promise.resolve('OK');
-  const task = logTasks.shift();
-  if (!task) return Promise.resolve('OK');
-  console.log(`***** ${taskCount++} / ${logTasks.length}`);
-
   //  Create logging client here to prevent expired connection.
-  const loggingLog = loggingLog0 ||
-    require('@google-cloud/logging')(googleCredentials).log(logName);
+  const loggingLog = loggingLog0 ||  //  Mark circular refs by [Circular]
+    require('@google-cloud/logging')(googleCredentials)
+      .log(logName, { removeCircular: true });
 
-  //  Wait for the task to finish, then schedule the next task.
-  return task(loggingLog)
+  //  Gather a batch of tasks and run them in parallel.
+  const batch = [];
+  const size = batchSize(flush);
+  for (;;) {
+    if (batch.length >= size) break;
+    if (logTasks.length === 0) break;
+    const task = logTasks.shift();
+    if (!task) return Promise.resolve('OK');
+    batch.push(
+      task(loggingLog)
+        .catch((err) => { console.error(err.message, err.stack); return null; })
+    );
+    taskCount += 1;
+  }
+  console.log(`***** ${taskCount} / ${batch.length} / ${logTasks.length}`);
+  //  Wait for the batch to finish.
+  return Promise.all(batch)
+    .then((res) => {
+      //  Write the non-null records into Google Cloud.
+      const entries = res.filter(x => x);
+      if (entries.length === 0) return null;
+      return loggingLog.write(entries);
+    })
     .catch((err) => { console.error(err.message, err.stack); return err; })
     .then(() => {  //  If flushing, don't wait for the tick.
       if (flush) {
@@ -165,18 +174,24 @@ function writeLog(req, loggingLog0, flush) {
           .catch((err) => { console.error(err.message, err.stack); return err; });
       }
       // eslint-disable-next-line no-use-before-define
-      scheduleLog(req);
+      scheduleLog(req, loggingLog);  //  Wait for next tick before writing.
       return null;
     })
     .catch((err) => { console.error(err.message, err.stack); return err; });
 }
 
-function scheduleLog(req) {
+//  Wait for the task to finish, then schedule the next task.
+//  return task(loggingLog)
+/* return loggingLog.write(entries)  //  Suppress error.
+.catch((err2) => { console.error(err2.message, err2.stack); return null; }); */
+
+function scheduleLog(req, loggingLog0) {
   //  Schedule for the log to be written at every tick, if there are tasks.
   if (logTasks.length === 0) return;
+  const loggingLog = loggingLog0;
   process.nextTick(() => {
     try {
-      writeLog(req);
+      writeLog(req, loggingLog);
     } catch (err2) {
       console.error(err2.message, err2.stack);
     } });
@@ -245,13 +260,12 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
           const out = [action, require('util').inspect(para, { colors: true })].join(' | ');
           console.log(out);
         }
-        return loggingLog.write(loggingLog.entry(metadata, event))  //  Suppress error.
-          .catch((err2) => { console.error(err2.message, err2.stack); return err2; });
+        return loggingLog.entry(metadata, event);
       })
-      .catch((err) => { console.error(err.message, err.stack); return err; });  //  Suppress error.
+      .catch((err) => { console.error(err.message, err.stack); return null; });  //  Suppress error.
   } catch (err) {
     console.error(err.message, err.stack);
-    return Promise.resolve(err);  //  Suppress error.
+    return Promise.resolve(null);  //  Suppress error.
   }
 } /* eslint-enable no-param-reassign */
 
