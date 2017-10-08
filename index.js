@@ -146,11 +146,13 @@ function writeLog(req, loggingLog0, flush) {
   //  Gather a batch of tasks and run them in parallel.
   const batch = [];
   const size = batchSize(flush);
+  //  If not flushing, wait till we got sufficient records.
+  if (!flush && batch.length < size) return Promise.resolve('insufficient');
   for (;;) {
     if (batch.length >= size) break;
     if (logTasks.length === 0) break;
     const task = logTasks.shift();
-    if (!task) return Promise.resolve('OK');
+    if (!task) break;
     batch.push(
       task(loggingLog)
         .catch((err) => { console.error(err.message, err.stack); return null; })
