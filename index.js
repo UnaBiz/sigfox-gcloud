@@ -129,11 +129,10 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
   }
 } /* eslint-enable global-require, no-param-reassign */
 
-//  List of logging tasks to be completed.
-const logTasks = [];
-let taskCount = 0;
-
-const batchSize = (flush) => (flush ? 4 : 4);
+//  Write log records in batches by 5 records normally, max 10 records when flushing.
+const batchSize = (flush) => (flush ? 5 : 10);
+const logTasks = [];  //  List of logging tasks to be completed.  They return a log entry.
+let taskCount = 0;  //  Number of logging tasks completed so far.
 
 function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
