@@ -194,14 +194,35 @@ cd sigfox-gcloud
 
     [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-callback.png)
     
+    -  **Type**: <br>
+        **`DATA, BIDIR`**
+    
+    -  **Channel**: <br>
+        **`URL`**
+    
+    -  **Send duplicate**: <br>
+        **Checked (Yes)**
+    
+    -  **Custom payload config**: <br>
+        **(Blank)**
+    
     -  **URL Pattern**: <br>
         Enter the **Sigfox Callback URL**
         that we have copied earlier.  It should look like:   
         `https://us-central1-myproject.cloudfunctions.net/sigfoxCallback`          
 
+    -  **Use HTTP Method**: <br>
+        **`POST`**
+        
+    -  **Send SNI**: <br>
+        **Checked (Yes)**
+
+    -  **Headers**: <br>
+        **(Blank)**
+
     -  **Content Type**: <br>
         **`application/json`**
-
+            
     - Set the **Body** (Sigfox message payload) as:
 
         ```json

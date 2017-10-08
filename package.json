@@ -25,18 +25,29 @@
     "node": ">=7.8.0"
   },
   "dependencies": {
-    "@google-cloud/debug-agent": "^1.0.0",
-    "@google-cloud/error-reporting": "^0.1.1",
-    "@google-cloud/logging": "^1.0.0",
-    "@google-cloud/pubsub": "0.10.0",
-    "@google-cloud/trace-agent": "^1.1.0",
+    "@google-cloud/bigquery": "^0.9.6",
+    "@google-cloud/debug-agent": "^2.1.3",
+    "@google-cloud/error-reporting": "^0.2.2",
+    "@google-cloud/logging": "^1.0.6",
+    "@google-cloud/pubsub": "^0.14.4",
+    "@google-cloud/trace-agent": "^2.2.0",
+    "dnscache": "^1.0.1",
     "dotenv": "^4.0.0",
-    "googleapis": "^18.0.0",
+    "googleapis": "^22.2.0",
+    "is-circular": "^1.0.1",
     "json-stringify-safe": "^5.0.1",
+    "moment": "^2.18.1",
     "node-fetch": "^1.6.3",
-    "safe-buffer": "5.0.1"
+    "safe-buffer": "5.0.1",
+    "uuid": "^3.1.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "chai-as-promised": "^6.0.0",
+    "should": "^11.2.1",
+    "supertest-as-promised": "^4.0.2",
+    "supertest": "^3.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/UnaBiz/sigfox-gcloud.git"
