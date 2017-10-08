@@ -94,6 +94,7 @@ function publishJSON(req, topic, obj) {
 function logQueue(req, action, para0) { /* eslint-disable global-require, no-param-reassign */
   //  Write log to a PubSub queue for easier analysis.
   try {
+    if (module.exports.logQueueConfig.length === 0) return Promise.resolve(null);
     const now = Date.now();
     if (!req) req = {};
     if (!para0) para0 = {};
@@ -143,18 +144,24 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
 const logTasks = [];
 let taskCount = 0;
 
-function writeLog(req, flush) {
+function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
   //  If flush is true, flush all logs without waiting for the tick, i.e. when quitting.
   if (logTasks.length === 0) return Promise.resolve('OK');
   const task = logTasks.shift();
+  if (!task) return Promise.resolve('OK');
   console.log(`***** ${taskCount++} / ${logTasks.length}`);
+
+  //  Create logging client here to prevent expired connection.
+  const loggingLog = loggingLog0 ||
+    require('@google-cloud/logging')(googleCredentials).log(logName);
+
   //  Wait for the task to finish, then schedule the next task.
-  return task()
+  return task(loggingLog)
     .catch((err) => { console.error(err.message, err.stack); return err; })
     .then(() => {  //  If flushing, don't wait for the tick.
       if (flush) {
-        return writeLog(req, flush)
+        return writeLog(req, loggingLog, flush)
           .catch((err) => { console.error(err.message, err.stack); return err; });
       }
       // eslint-disable-next-line no-use-before-define
@@ -168,27 +175,29 @@ function scheduleLog(req) {
   //  Schedule for the log to be written at every tick, if there are tasks.
   if (logTasks.length === 0) return;
   process.nextTick(() => {
-    try { writeLog(req); } catch (err2) {
+    try {
+      writeLog(req);
+    } catch (err2) {
       console.error(err2.message, err2.stack);
     } });
 }
 
 function flushLog(req) {
   //  Flush all log items when we are quitting.
-  return writeLog(req, true)
+  return writeLog(req, null, true)
     .catch((err) => { console.error(err.message, err.stack); return err; });
 }
 
-function deferLog(req, action, para0, record /* , now */) { /* eslint-disable no-param-reassign */
+function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disable no-param-reassign */
   //  Write the action and parameters to Google Cloud Logging for normal log,
   //  or to Google Cloud Error Reporting if para contains error.
-  //  Returns a promise.
+  //  loggingLog contains the Google Cloud logger.  Returns a promise.
   try {
     //  Don't log any null values, causes Google Log errors.
     const para = removeNulls(para0 || {});
     //  Log to PubSub for easier analysis.
     return logQueue(req, action, para)
-      .catch((err) => { console.error(err.message, err.stack); })  //  Suppress error.
+      .catch((err) => { console.error(err.message, err.stack); return err; })  //  Suppress error.
       .then(() => {
         //  Log the parameters.
         //  noinspection Eslint
@@ -236,9 +245,6 @@ function deferLog(req, action, para0, record /* , now */) { /* eslint-disable no
           const out = [action, require('util').inspect(para, { colors: true })].join(' | ');
           console.log(out);
         }
-        //  Write the log.  Create logging client here to prevent expired connection.
-        const logging = require('@google-cloud/logging')(googleCredentials);
-        const loggingLog = logging.log(logName);
         return loggingLog.write(loggingLog.entry(metadata, event))  //  Suppress error.
           .catch((err2) => { console.error(err2.message, err2.stack); return err2; });
       })
@@ -289,8 +295,13 @@ function log(req0, action, para0) {
       if (req.deviceid) para.deviceid = req.deviceid;
     }
     //  Write the log in the next tick, so we don't block.
-    logTasks.push(() => deferLog(req, action, para, record, now)
-      .catch((err2) => { console.error(err2.message, err2.stack); return err2; }));
+    logTasks.push((loggingLog) => (
+      deferLog(req, action, para, record, now, loggingLog)
+        .catch((err2) => {
+          console.error(err2.message, err2.stack);
+          return err2;
+        })
+    ));
     if (logTasks.length === 1) scheduleLog({});  //  Means nobody else has started schedule.
     return err || para.result || null;
   } catch (err) {
