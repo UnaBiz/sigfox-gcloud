@@ -494,7 +494,12 @@ function main(event, task) {
     //  Log the final result i.e. the dispatched message.
     .then(result => log(req, 'end', { result, device, body, event, message }))
     //  Suppress all errors else Google will retry the message.
-    .catch(error => log(req, 'end', { error, device, body, event, message }));
+    .catch(error => log(req, 'end', { error, device, body, event, message }))
+    //  Flush the log and wait for it to be completed.
+    .then(() => console.log('flushing log...'))
+    .then(() => flushLog({}))
+    .then(() => console.log('log flushed'))
+    .catch(error => error);
 }
 
 module.exports = {
