@@ -143,14 +143,25 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
 const logTasks = [];
 let taskCount = 0;
 
-function writeLog(req) {
+function writeLog(req, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
-  if (logTasks.length === 0) return;
+  //  If flush is true, flush all logs without waiting for the tick, i.e. when quitting.
+  if (logTasks.length === 0) return Promise.resolve('OK');
   const task = logTasks.shift();
-  console.log('***** ' + (taskCount++) + ' / ' + logTasks.length);
-  try { task(); } catch (err) { console.error(err.message, err.stack); }
-  // eslint-disable-next-line no-use-before-define
-  scheduleLog(req);
+  console.log(`***** ${taskCount++} / ${logTasks.length}`);
+  //  Wait for the task to finish, then schedule the next task.
+  return task()
+    .catch((err) => { console.error(err.message, err.stack); return err; })
+    .then(() => {  //  If flushing, don't wait for the tick.
+      if (flush) {
+        return writeLog(req, flush)
+          .catch((err) => { console.error(err.message, err.stack); return err; });
+      }
+      // eslint-disable-next-line no-use-before-define
+      scheduleLog(req);
+      return null;
+    })
+    .catch((err) => { console.error(err.message, err.stack); return err; });
 }
 
 function scheduleLog(req) {
@@ -160,6 +171,12 @@ function scheduleLog(req) {
     try { writeLog(req); } catch (err2) {
       console.error(err2.message, err2.stack);
     } });
+}
+
+function flushLog(req) {
+  //  Flush all log items when we are quitting.
+  return writeLog(req, true)
+    .catch((err) => { console.error(err.message, err.stack); return err; });
 }
 
 function deferLog(req, action, para0, record /* , now */) { /* eslint-disable no-param-reassign */
@@ -255,7 +272,8 @@ function log(req0, action, para0) {
         //  Report the error to the Stackdriver Error Reporting API
         const errorReport = require('@google-cloud/error-reporting')({ reportUnhandledRejections: true });
 
-        errorReport.report(err);
+        errorReport.report(err)
+          .catch((err2) => { console.error(err2.message, err2.stack); });
       } catch (err2) { console.error(err2.message, err2.stack); }
     }
     const record = { timestamp: `${now}`, action };
@@ -271,7 +289,8 @@ function log(req0, action, para0) {
       if (req.deviceid) para.deviceid = req.deviceid;
     }
     //  Write the log in the next tick, so we don't block.
-    logTasks.push(() => deferLog(req, action, para, record, now));
+    logTasks.push(() => deferLog(req, action, para, record, now)
+      .catch((err2) => { console.error(err2.message, err2.stack); return err2; }));
     if (logTasks.length === 1) scheduleLog({});  //  Means nobody else has started schedule.
     return err || para.result || null;
   } catch (err) {
@@ -459,6 +478,7 @@ module.exports = {
   sleep,
   log,
   error: log,
+  flushLog,
   logQueueConfig: [],   //  Log to PubSub: array of { projectId, topicName }
   logQueue,
   publishMessage,
