@@ -21,9 +21,21 @@ cp ${localpath}/*.js* ${tmp}
 echo ========= ${name} ========= cp ./google-credentials.json ${tmp}
 cp ./google-credentials.json ${tmp}
 
-# Deploy to Google Cloud.
+# Select Google Cloud project.
 gcloud config set project ${GCLOUD_PROJECT}
 gcloud config list project
+
+# Generate source info for Google Cloud Debugger.
+echo ========= ${name} ========= gcloud beta debug source gen-repo-info-file
+gcloud beta debug source gen-repo-info-file
+echo ========= ${name} ========= cp ./source-context.json ${tmp}
+cp ./source-context.json ${tmp}
+echo ========= ${name} ========= cp ./source-contexts.json ${tmp}
+cp ./source-contexts.json ${tmp}
+rm ./source-context.json
+rm ./source-contexts.json
+
+# Deploy to Google Cloud.
 echo ========= ${name} ========= gcloud beta functions deploy ${name} --quiet ${trigger} ${topic} --stage-bucket ${bucket} --local-path ${tmp} --entry-point main
 gcloud beta functions deploy ${name} --quiet ${trigger} ${topic} --stage-bucket ${bucket} --local-path ${tmp} --entry-point main
 

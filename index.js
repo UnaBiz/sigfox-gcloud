@@ -139,6 +139,29 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
   }
 } /* eslint-enable global-require, no-param-reassign */
 
+//  List of logging tasks to be completed.
+const logTasks = [];
+let taskCount = 0;
+
+function writeLog(req) {
+  //  Execute each log task one tick at a time, so it doesn't take too much resources.
+  if (logTasks.length === 0) return;
+  const task = logTasks.shift();
+  console.log('***** ' + (taskCount++) + ' / ' + logTasks.length);
+  try { task(); } catch (err) { console.error(err.message, err.stack); }
+  // eslint-disable-next-line no-use-before-define
+  scheduleLog(req);
+}
+
+function scheduleLog(req) {
+  //  Schedule for the log to be written at every tick, if there are tasks.
+  if (logTasks.length === 0) return;
+  process.nextTick(() => {
+    try { writeLog(req); } catch (err2) {
+      console.error(err2.message, err2.stack);
+    } });
+}
+
 function deferLog(req, action, para0, record /* , now */) { /* eslint-disable no-param-reassign */
   //  Write the action and parameters to Google Cloud Logging for normal log,
   //  or to Google Cloud Error Reporting if para contains error.
@@ -247,8 +270,9 @@ function log(req0, action, para0) {
       if (req.userid) para.userid = req.userid;
       if (req.deviceid) para.deviceid = req.deviceid;
     }
-    //  Write the log.
-    deferLog(req, action, para, record, now);
+    //  Write the log in the next tick, so we don't block.
+    logTasks.push(() => deferLog(req, action, para, record, now));
+    if (logTasks.length === 1) scheduleLog({});  //  Means nobody else has started schedule.
     return err || para.result || null;
   } catch (err) {
     console.error(err.message, err.stack);
@@ -412,7 +436,7 @@ function main(event, task) {
   const body = message ? message.body : null;
   req.uuid = body ? body.uuid : 'missing_uuid';
   if (message.isDispatched) delete message.isDispatched;
-  log(req, 'start', { device, body, event, message });
+  log(req, 'start', { device, body, event, message, googleCredentials });
 
   //  If the message is already processed by another server, skip it.
   return isProcessedMessage(req, message)
@@ -429,8 +453,9 @@ function main(event, task) {
 }
 
 module.exports = {
-  projectId,
-  functionName,
+  projectId: process.env.GCLOUD_PROJECT,
+  functionName: process.env.FUNCTION_NAME || 'unknown_function',
+  getCredentials: () => googleCredentials,
   sleep,
   log,
   error: log,
