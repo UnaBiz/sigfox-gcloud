@@ -13,6 +13,9 @@
 
 /* eslint-disable camelcase, no-console, no-nested-ternary, import/no-dynamic-require,
   import/newline-after-import, import/no-unresolved, global-require, max-len */
+//  Enable DNS cache in case we hit the DNS quota for Google Cloud Functions.
+require('dnscache')({ enable: true });
+process.on('uncaughtException', err => console.error(err.message, err.stack));  //  Display uncaught exceptions.
 if (process.env.FUNCTION_NAME) {
   //  Load the Google Cloud Trace and Debug Agents before any require().
   //  Only works in Cloud Function.
@@ -71,7 +74,11 @@ function saveMessage(req, device, type, body) {
   const promises = [];
   for (const queue of queues) {
     //  Send message to each queue, either the device ID or message type queue.
-    const promise = sgcloud.publishMessage(req, message, queue.device, queue.type);
+    const promise = sgcloud.publishMessage(req, message, queue.device, queue.type)
+      .catch((error) => {
+        sgcloud.log(req, 'saveMessage', { error, device, type, body });
+        return error;  //  Suppress the error so other sends can proceed.
+      });
     promises.push(promise);
   }
   //  Wait for the messages to be published to the queues.
@@ -85,33 +92,6 @@ function parseBool(s) {
   //  Parse a string to boolean.
   return s === 'true';
 }
-
-function checkSequenceNumber(/* req, deviceID, event */) { /* eslint-disable no-underscore-dangle */
-  //  Return the sequence number from the event.
-  //  If sequence number missing, return sequence number followed by M and the number of
-  //  missing messages
-  //  TODO: Find a more efficient scalable implementation.
-  return null;
-  /*
-  if (!event || !event.seqNumber) return '';
-  const seqNumber = parseInt(event.seqNumber, 10);
-  //  Compare with last seqNumber and detect missing sequence numbers.
-  let result = `${event.seqNumber}`;
-  module.exports._lastMissingMessages = 0;
-  //  Given the device ID, return the last sequence number seen.  Used to detect missing messages.
-  const lastSeqNumber = cache.get(cache.seq, deviceID);
-  if (lastSeqNumber !== null && lastSeqNumber !== undefined) {
-    const missingCount = seqNumber - lastSeqNumber - 1;
-    if (missingCount > 0) {  //  Could be -1 for duplicate messages.
-      module.exports._lastMissingMessages = missingCount;
-      result = `${result} M${missingCount}`;
-      sgcloud.log(req, 'event/checkSequenceNumber', { deviceID, missingCount, event });
-    }
-  }
-  cache.set(cache.seq, deviceID, seqNumber);
-  return result;
-  */
-} /* eslint-enable no-underscore-dangle */
 
 function parseSIGFOXMessage(req, body0) {  /* eslint-disable no-param-reassign */
   //  Convert Sigfox body from string to native types.
@@ -150,7 +130,6 @@ function parseSIGFOXMessage(req, body0) {  /* eslint-disable no-param-reassign *
   if (body.seqNumber) body.seqNumber = parseInt(body.seqNumber, 10);
   if (body.ack) body.ack = parseBool(body.ack);
   if (body.longPolling) body.longPolling = parseBool(body.longPolling);
-  body.seqNumberCheck = checkSequenceNumber(req, body.device, body);
   return body;
 } /* eslint-enable no-param-reassign */
 
@@ -168,7 +147,7 @@ function task(req, device, body0, msg) {
     //  Wait for the downlink data if any.
     .then(() => getResponse(req, device, body0, msg))
     //  Return the response to Sigfox Cloud.
-    .then(response => res.json(response))
+    .then(response => res.status(200).json(response).end())
     .then(() => result)
     .catch((error) => { throw error; });
 }
@@ -211,5 +190,10 @@ exports.main = (req0, res) => {
     .then(() => sgcloud.dispatchMessage(req, updatedMessage, device))
     .then(result => sgcloud.log(req, 'end', { result, device, body, event, updatedMessage }))
     //  Suppress all errors else Google will retry the message.
-    .catch(error => sgcloud.log(req, 'end', { error, device, body, event, updatedMessage }));
+    .catch(error => sgcloud.log(req, 'end', { error, device, body, event, updatedMessage }))
+    //  Flush the log and wait for it to be completed.
+    .then(() => console.log('flushing log...'))
+    .then(() => sgcloud.flushLog({}))
+    .then(() => console.log('log flushed'))
+    .catch(error => error);
 };

@@ -1,18 +1,16 @@
 //  Unit Test for decodeStructuredMessage
-
 /* global describe:true, it:true, beforeEach:true */
 /* eslint-disable import/no-extraneous-dependencies, no-console, no-unused-vars, one-var,
  no-underscore-dangle */
 const chai = require('chai');
 const chaiAsPromised = require('chai-as-promised');
-const common = require('../../index');
-const moduleTested = require('../index');  //  Module to be tested, i.e. the parent module.
-const structuredMessage = require('../structuredMessage');  //  Other modules to be tested.
-
-const moduleName = 'decodeStructuredMessage';
 const should = chai.should();
 chai.use(chaiAsPromised);
 
+const common = require('../../index');
+const moduleTested = require('../index');  //  Module to be tested, i.e. the parent module.
+const structuredMessage = require('../structuredMessage');  //  Other modules to be tested.
+const moduleName = 'decodeStructuredMessage';
 let req = {};
 
 //  Test data
@@ -94,13 +92,33 @@ describe('decodeStructuredMessage', () => {
   beforeEach(() => {
     //  Erase the request object before every test.
     startDebug();
-    req = {};
+    req = { unittest: true };
+  });
+
+  it('should publish message', () => {
+    //  Test whether we can publish a message to sigfox.devices.UNITTEST1.
+    //  Note: Queue must exist.
+    const msg = getTestMessage('number');
+    const body = msg.body;
+    common.log(req, 'unittest', { testDevice, body, msg });
+    const promise = common.publishMessage(req, msg, testDevice, 'unittest')
+      .then((result) => {
+        common.log(req, 'unittest', { result });
+        return result;
+      })
+      .catch((error) => {
+        common.error(req, 'unittest', { error });
+        debugger;
+        throw error;
+      })
+    ;
+    return Promise.all([
+      promise,
+    ]);
   });
 
   it('should decode structured message with numbers', () => {
-    //  Every sigfox-gcloud processing step must have a task
-    //  function that performs processing and returns a
-    //  message for dispatching.
+    //  Test whether we can decode a structured message containing numbers.
     const msg = getTestMessage('number');
     const body = msg.body;
     common.log(req, 'unittest', { testDevice, body, msg });
@@ -124,6 +142,7 @@ describe('decodeStructuredMessage', () => {
   });
 
   it('should decode structured message with text', () => {
+    //  Test whether we can decode a structured message containing text.
     const data = testData.text;
     common.log(req, 'unittest', { data });
     const result = structuredMessage.decodeMessage(data, ['d1', 'd2', 'd3']);
