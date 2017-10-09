@@ -204,6 +204,8 @@ function flushLog(req) {
     .catch((err) => { console.error(err.message, err.stack); return err; });
 }
 
+const operationCache = {};
+
 function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disable no-param-reassign */
   //  Write the action and parameters to Google Cloud Logging for normal log,
   //  or to Google Cloud Error Reporting if para contains error.
@@ -245,8 +247,22 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
           else console.log(out);
         }
         const level = para.err ? 'ERROR' : 'DEBUG';
+        const operationid = action + '/' + req.traceid;
+        const operation = {
+          //  Optional. An arbitrary operation identifier. Log entries with the same identifier are assumed to be part of the same operation.
+          id: operationid,
+          //  Optional. An arbitrary producer identifier. The combination of id and producer must be globally unique. Examples for producer: "MyDivision.MyBigCompany.com", "github.com/MyProject/MyApplication".
+          producer: 'unabiz.com',
+          //  Optional. Set this to True if this is the first log entry in the operation.
+          first: operationCache[operationid] ? false : true,
+          //  Optional. Set this to True if this is the last log entry in the operation.
+          last: (para.err || para.result) ? true : false,
+        };
+        operationCache[operationid] = now;
         const metadata = {
+          timestamp: new Date(now).toISOString(),
           severity: level.toUpperCase(),
+          operation,
           resource: {
             type: 'cloud_function',
             labels: { function_name: functionName },
