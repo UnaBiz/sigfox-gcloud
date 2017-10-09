@@ -276,7 +276,7 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
         event.____ = '[ ' + (para.device || ' ? ') + ' ]';
         event.___ = action || '';
         if (para2.result) {
-          event.__result = para2.result;
+          event.__ = { result: para2.result };
           delete para2.result;
         }
         event._ = para2 || '';
