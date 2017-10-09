@@ -177,7 +177,7 @@ exports.main = (req0, res) => {
       : null;
   const oldMessage = { device, body, type };
   let updatedMessage = oldMessage;
-  sgcloud.log(req, 'start', { device, body, event, env: process.env });
+  sgcloud.log(req, 'start', { device, body, event });
 
   //  Now we run the task to publish the message to the 3 queues.
   //  Wait for the task to complete then dispatch to next step.
