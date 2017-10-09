@@ -30,6 +30,21 @@ git clone https://github.com/UnaBiz/sigfox-gcloud.git
 cd sigfox-gcloud
 ```
 
+If you're using Ubuntu on Windows 10, we recommend that you launch "Bash on Ubuntu on Windows" and enter the following
+commands to download the source files into the folder `/mnt/c/sigfox-gcloud`:
+
+```bash
+cd /mnt/c
+git clone https://github.com/UnaBiz/sigfox-gcloud.git
+cd sigfox-gcloud
+```
+
+That's because `/mnt/c/sigfox-gcloud` under `bash` is a shortcut to `c:\sigfox-gcloud` under Windows.  
+So you could use Windows Explorer and other Windows tools to browse and edit files in the folder.
+Remember to use a text editor like Visual Studio Code that can save files using 
+the Linux line-ending convention (linefeed only: `\n`), 
+instead of the Windows convention (carriage return + linefeed: `\r \n`).
+
 ### Setting up Google Cloud
 
 1. Create a Google Cloud Platform project. Assume the project ID is `myproject`.
@@ -38,7 +53,8 @@ cd sigfox-gcloud
     
 1. Open a bash command prompt.  For Windows, open "Bash on Ubuntu on Windows."  
     Create a file named `.env` in the `sigfox-gcloud` folder  
-    and populate the `GCLOUD_PROJECT` variable with your project ID like this 
+    and populate the `GCLOUD_PROJECT` variable with your project ID.
+     To do that, you may use this command 
     (change `myproject` to your project ID):
 
     ```bash
@@ -49,15 +65,15 @@ cd sigfox-gcloud
 
     [*ENABLE BILLING*](https://support.google.com/cloud/answer/6293499#enable-billing)
 
-1. Enable the Cloud Functions, Cloud Pub/Sub, Compute Engine, Stackdriver Logging APIs.
+1. Click this special link to enable the Cloud Functions, Cloud Pub/Sub, Compute Engine, Stackdriver Logging APIs for your project.
 
     [*ENABLE THE APIS*](https://console.cloud.google.com/flows/enableapi?apiid=cloudfunctions,pubsub,logging,compute_component)
 
-1. Install and initialize the Google Cloud SDK.
+1. For Linux and MacOS, click this link to install and initialize the Google Cloud SDK.
 
     [*GOOGLE CLOUD SDK*](https://cloud.google.com/sdk/docs/)
 
-    If you are running Ubuntu on Windows 10, open "Bash on Ubuntu on Windows" and follow the Ubuntu installation steps:
+    For Ubuntu on Windows 10, open "Bash on Ubuntu on Windows" and follow the Ubuntu installation steps here:
   
     https://cloud.google.com/sdk/downloads#apt-get
 
@@ -99,6 +115,7 @@ cd sigfox-gcloud
    support device ID `1A234` and device type `gps`, we would execute:
 
     ```bash
+    # Optional...
     gcloud beta pubsub topics create sigfox.devices.1A234
     gcloud beta pubsub topics create sigfox.types.gps
     ```
