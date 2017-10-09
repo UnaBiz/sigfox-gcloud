@@ -293,8 +293,7 @@ function log(req0, action, para0) {
         //  Report the error to the Stackdriver Error Reporting API
         const errorReport = require('@google-cloud/error-reporting')({ reportUnhandledRejections: true });
 
-        errorReport.report(err)
-          .catch((err2) => { console.error(err2.message, err2.stack); });
+        errorReport.report(err);
       } catch (err2) { console.error(err2.message, err2.stack); }
     }
     const record = { timestamp: `${now}`, action };
