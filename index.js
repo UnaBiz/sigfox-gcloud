@@ -273,14 +273,10 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
         //  Else log to Google Cloud Logging. We use _ and __ because
         //  it delimits the action and parameters nicely in the log.
         //  eslint-disable-next-line no-underscore-dangle
-        const key = `____[ ${para.device || ' ? '} ]____${action || '    '}____`;
+        let key = `____[ ${para.device || ' ? '} ]____${action || '    '}____`;
+        const keyLength = 40;
+        if (key.length < keyLength) key = key + '_'.repeat(keyLength - key.length);
         event[key] = para;
-        /*
-        if (para2.result) {
-          event.__ = { result: para2.result };
-          delete para2.result;
-        }
-        */
         if (!isCloudFunc) {
           const out = [action, require('util').inspect(para, { colors: true })].join(' | ');
           console.log(out);
