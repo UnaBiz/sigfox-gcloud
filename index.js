@@ -279,7 +279,7 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
           event.__ = { result: para2.result };
           delete para2.result;
         }
-        event._ = para2 || '';
+        event._ = { _____: para2 };
         if (!isCloudFunc) {
           const out = [action, require('util').inspect(para, { colors: true })].join(' | ');
           console.log(out);
