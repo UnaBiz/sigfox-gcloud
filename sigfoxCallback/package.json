@@ -1,6 +1,6 @@
 {
   "name": "sigfoxCallback",
-  "version": "0.0.36",
+  "version": "0.0.38",
   "author": {
     "name": "Lee Lup Yuen",
     "email": "ly.lee@unabiz.com",
@@ -19,7 +19,7 @@
     "dnscache": "^1.0.1",
     "dotenv": "^4.0.0",
     "googleapis": "^22.2.0",
-    "sigfox-gcloud": ">=0.0.37",
+    "sigfox-gcloud": ">=0.0.38",
     "safe-buffer": "5.0.1",
     "node-fetch": "^1.6.3",
     "json-stringify-safe": "^5.0.1",
