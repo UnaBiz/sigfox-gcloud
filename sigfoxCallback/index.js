@@ -159,6 +159,8 @@ exports.main = (req0, res) => {
   const req = Object.assign({}, req0);  //  Clone the request.
   req.res = res;
   req.starttime = Date.now();
+  //  Start a root-level span to trace the request across Cloud Functions.
+  sgcloud.startRootSpan(req);
   const event = null;
   const type = (req.query && req.query.type) || null;
   const uuid0 = uuid.v4();  //  Assign a UUID for message tracking.

@@ -26,6 +26,7 @@ const util = require('util');
 const path = require('path');
 const uuidv4 = require('uuid/v4');
 const stringify = require('json-stringify-safe');
+const tracing = require('gcloud-trace')();
 
 //  Assume that the Google Service Account credentials are present in this file.
 //  This is needed for calling Google Cloud PubSub, Logging, Trace, Debug APIs
@@ -45,12 +46,12 @@ function sleep(req, res, millisec) {
 }
 
 function removeNulls(obj0, level) {
-  //  Remove null values recursively.  We don't remove circular references
-  //  because Google Cloud Logging remove circular references.
-  if (level > 3) return '(truncated)';
+  //  Remove null values recursively before logging to Google Cloud.
+  //  We don't remove circular references because Google Cloud Logging
+  //  removes circular references.  level should initially be null.
+  if (level > 3) return '(truncated)';  //  Truncate at depth 3 to reduce log size.
   const obj = Object.assign({}, obj0);
   for (const key of Object.keys(obj)) {
-    //  console.log({ key });
     const val = obj[key];
     if (val === null || val === undefined) {
       delete obj[key];
@@ -59,6 +60,60 @@ function removeNulls(obj0, level) {
     }
   }
   return obj;
+}
+
+function getSpanName(body) {
+  //  Return a span name based on the device ID, sequence number and basestationTime:
+  //    device|seqNumber|baseStationTime
+  //  Will be used to track the request end to end.
+  if (!body) return 'missing_body';
+  const device = body.device ? body.device.toUpperCase() : 'missing_device';
+  const seqNumber = body.seqNumber || 'missing_seqNumber';
+  const baseStationTime = body.time || body.baseStationTime || 'missing_time';
+  return [device, seqNumber, baseStationTime].join('|');
+}
+
+function startRootSpan(req) {
+  //  Start a root-level span to trace the request across Cloud Functions.
+  const rootSpanName = getSpanName(req.body);
+  const rootSpan = tracing.startRootSpan(rootSpanName);
+  Object.assign(req, { rootSpan });  //  Cache in the request object.
+  return rootSpan;
+}
+
+function getRootSpan(req) {
+  //  Return the current root span for tracing the request across Cloud Functions.
+  //  Returns a promise.
+  if (req.rootSpan) return Promise.resolve(req.rootSpan);
+  const rootSpanName = getSpanName(req.body);
+  return new Promise((accept, reject) =>
+      tracing.getTrace(rootSpanName, (err, res) =>
+        (err ? reject(err) : accept(res)))
+    )
+    .then((rootSpan) => {
+      if (!rootSpan) return null;
+      Object.assign(req, { rootSpan });  //  Cache in the request object.
+      return rootSpan;
+    })
+    .catch((error) => {
+      console.error(error.message, error.stack);
+      return null;  //  Suppress the error.
+    });
+}
+
+function endRootSpan(req) {
+  //  End the current root-level span for tracing the request across Cloud Functions.
+  //  Returns a promise.
+  return getRootSpan(req)
+    .then((rootSpan) => {
+      if (rootSpan) rootSpan.end();  // eslint-disable-next-line no-param-reassign
+      if (req.rootSpan) delete req.rootSpan;
+      return 'OK';
+    })
+    .catch((error) => {
+      console.error(error.message, error.stack);
+      return null;  //  Suppress the error.
+    });
 }
 
 function createTraceID(now0) {
@@ -133,6 +188,7 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
 const batchSize = (flush) => (flush ? 5 : 10);
 const logTasks = [];  //  List of logging tasks to be completed.  They return a log entry.
 let taskCount = 0;  //  Number of logging tasks completed so far.
+const operationCache = {};  //  Remember all past operation IDs here, so we know whether it's a new one.
 
 function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
@@ -204,8 +260,6 @@ function flushLog(req) {
     .catch((err) => { console.error(err.message, err.stack); return err; });
 }
 
-const operationCache = {};
-
 function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disable no-param-reassign */
   //  Write the action and parameters to Google Cloud Logging for normal log,
   //  or to Google Cloud Error Reporting if para contains error.
@@ -247,15 +301,17 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
           else console.log(out);
         }
         const level = para.err ? 'ERROR' : 'DEBUG';
-        const operationid = action + '/' + req.traceid;
+        const operationid = `${action}/${req.traceid}`;
         const operation = {
           //  Optional. An arbitrary operation identifier. Log entries with the same identifier are assumed to be part of the same operation.
           id: operationid,
           //  Optional. An arbitrary producer identifier. The combination of id and producer must be globally unique. Examples for producer: "MyDivision.MyBigCompany.com", "github.com/MyProject/MyApplication".
           producer: 'unabiz.com',
           //  Optional. Set this to True if this is the first log entry in the operation.
+          //  eslint-disable-next-line no-unneeded-ternary
           first: operationCache[operationid] ? false : true,
           //  Optional. Set this to True if this is the last log entry in the operation.
+          //  eslint-disable-next-line no-unneeded-ternary
           last: (para.err || para.result) ? true : false,
         };
         operationCache[operationid] = now;
@@ -269,11 +325,10 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
             labels: { function_name: functionName },
           } };
         const event = {};
-        const para2 = Object.assign({}, para);
         //  Else log to Google Cloud Logging. We use _ and __ because
         //  it delimits the action and parameters nicely in the log.
         //  eslint-disable-next-line no-underscore-dangle
-        let key = `____[ ${para.device || ' ? ? ?'} ]____${action || '    '}____`;
+        let key = `_${(para && para.result) ? '<<' : '__'}_[ ${para.device || ' ? ? ? '} ]____${action || '    '}____`;
         const keyLength = 40;
         if (key.length < keyLength) key = key + '_'.repeat(keyLength - key.length);
         event[key] = para;
@@ -344,7 +399,6 @@ function log(req0, action, para0) {
   }
 } /* eslint-enable no-param-reassign, global-require */
 
-//  TODO
 function isProcessedMessage(/* req, message */) {
   //  Return true if this message is being or has been processed recently by this server
   //  or another server.  We check the central queue.  In case of error return false.
@@ -443,10 +497,15 @@ function dispatchMessage(req, oldMessage, device) {
   //  Update the message history.
   const message = updateMessageHistory(req, oldMessage);
   if (!message.route || message.route.length === 0) {
-    //  No more steps to dispatch, quit.
+    //  No more steps to dispatch, so end the root span for tracing the request.
     const result = message;
     log(req, 'dispatchMessage', { result, status: 'no_route', message, device });
-    return Promise.resolve(result);
+    return endRootSpan(req)
+      .then(() => result)
+      .catch((error) => {
+        console.error(error.message, error.stack);
+        return result;
+      });
   }
   //  Get the next step and publish the message there.
   //  Don't use shift() because it mutates the original object:
@@ -524,6 +583,7 @@ module.exports = {
   functionName: process.env.FUNCTION_NAME || 'unknown_function',
   getCredentials: () => googleCredentials,
   sleep,
+  startRootSpan,
   log,
   error: log,
   flushLog,
