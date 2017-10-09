@@ -14,7 +14,7 @@ do
 
   # Simulate Sigfox Callback for device ID 2C30EA
   # wget command was exported from Postman. Remove all "\r\n" from body-data.
-  /usr/bin/time --format "\n***** %e SECONDS RESPONSE TIME *****\n" \
+  /usr/bin/time \
     wget --verbose \
     --method POST \
     --header 'content-type: application/json' \
@@ -27,7 +27,7 @@ do
   sleep 10
 
   # Simulate Sigfox Callback for a different device ID 2C30EB and different Ubidots account.
-  /usr/bin/time --format "\n***** %e SECONDS RESPONSE TIME *****\n" \
+  /usr/bin/time \
     wget --verbose \
       --method POST \
       --header 'content-type: application/json' \
