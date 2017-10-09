@@ -259,8 +259,10 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
           last: (para.err || para.result) ? true : false,
         };
         operationCache[operationid] = now;
+        const timestamp = new Date(now).toISOString();
+        console.log({ now, timestamp });
         const metadata = {
-          timestamp: new Date(now).toISOString(),
+          timestamp,
           severity: level.toUpperCase(),
           operation,
           resource: {
