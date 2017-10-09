@@ -269,13 +269,17 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
             labels: { function_name: functionName },
           } };
         const event = {};
+        const para2 = Object.assign({}, para);
         //  Else log to Google Cloud Logging. We use _ and __ because
         //  it delimits the action and parameters nicely in the log.
         //  eslint-disable-next-line no-underscore-dangle
         event.____ = '[ ' + (para.device || ' ? ') + ' ]';
         event.___ = action || '';
-        if (para.result) event.__ = { result: para.result };
-        event._ = para || '';
+        if (para2.result) {
+          event.__result = para2.result;
+          delete para2.result;
+        }
+        event._ = para2 || '';
         if (!isCloudFunc) {
           const out = [action, require('util').inspect(para, { colors: true })].join(' | ');
           console.log(out);
@@ -387,11 +391,11 @@ function publishMessage(req, oldMessage, device, type) {
   const destination = topicName;
   return publishJSON(req, topic, message)
     .then(result => {
-      log(req, 'publishMessage', { result, destination, topicName, message, device, type, projectId: pid });
+      log(req, 'publishMessage', { result, destination, topicName, message, device: oldMessage.device, type, projectId: pid });
       return result;
     })
     .catch(error => {
-      log(req, 'publishMessage', { error, destination, topicName, message, device, type, projectId: pid });
+      log(req, 'publishMessage', { error, destination, topicName, message, device: oldMessage.device, type, projectId: pid });
       return error;  //  Suppress the error.
     });
 }

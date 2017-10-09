@@ -192,8 +192,6 @@ exports.main = (req0, res) => {
     //  Suppress all errors else Google will retry the message.
     .catch(error => sgcloud.log(req, 'end', { error, device, body, event, updatedMessage }))
     //  Flush the log and wait for it to be completed.
-    .then(() => console.log('flushing log...'))
     .then(() => sgcloud.flushLog({}))
-    .then(() => console.log('log flushed'))
     .catch(error => error);
 };
