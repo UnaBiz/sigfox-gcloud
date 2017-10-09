@@ -159,7 +159,7 @@ function writeLog(req, loggingLog0, flush) {
     );
     taskCount += 1;
   }
-  console.log(`***** ${taskCount} / ${batch.length} / ${logTasks.length}`);
+  console.log(`______ ${taskCount} / ${batch.length} / ${logTasks.length}`);
   //  Wait for the batch to finish.
   return Promise.all(batch)
     .then((res) => {
@@ -272,7 +272,9 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
         //  Else log to Google Cloud Logging. We use _ and __ because
         //  it delimits the action and parameters nicely in the log.
         //  eslint-disable-next-line no-underscore-dangle
-        event.__ = action || '';
+        event.____ = '[ ' + (para.device || ' ? ') + ' ]';
+        event.___ = action || '';
+        if (para.result) event.__ = { result: para.result };
         event._ = para || '';
         if (!isCloudFunc) {
           const out = [action, require('util').inspect(para, { colors: true })].join(' | ');
@@ -512,9 +514,7 @@ function main(event, task) {
     //  Suppress all errors else Google will retry the message.
     .catch(error => log(req, 'end', { error, device, body, event, message }))
     //  Flush the log and wait for it to be completed.
-    .then(() => console.log('flushing log...'))
     .then(() => flushLog({}))
-    .then(() => console.log('log flushed'))
     .catch(error => error);
 }
 
