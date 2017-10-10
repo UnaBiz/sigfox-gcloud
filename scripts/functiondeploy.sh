@@ -36,8 +36,8 @@ rm ./source-context.json
 rm ./source-contexts.json
 
 # Deploy to Google Cloud.
-echo ========= ${name} ========= gcloud beta functions deploy ${name} --quiet ${trigger} ${topic} --stage-bucket ${bucket} --local-path ${tmp} --entry-point main  ${options}
-gcloud beta functions deploy ${name} --quiet ${trigger} ${topic} --stage-bucket ${bucket} --local-path ${tmp} --entry-point main  ${options}
+echo ========= ${name} ========= gcloud beta functions deploy ${name} --quiet ${trigger} ${topic} --stage-bucket ${bucket} --source ${tmp} --entry-point main  ${options}
+gcloud beta functions deploy ${name} --quiet ${trigger} ${topic} --stage-bucket ${bucket} --source ${tmp} --entry-point main  ${options}
 
 # Purge after deploying.
 echo ========= ${name} ========= ${tmp}/google-credentials.json
