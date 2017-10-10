@@ -376,7 +376,8 @@ function log(req0, action, para0) {
       if (req.deviceid) para.deviceid = req.deviceid;
     }
     //  Create the log operation.
-    const operationid = `${action}/${req.traceid ? req.traceid[0] : createTraceID(now)}`;
+    ////const operationid = `${action}/${req.traceid ? req.traceid[0] : createTraceID(now)}`;
+    const operationid = action; ////
     const operation = {
       //  Optional. An arbitrary operation identifier. Log entries with the same identifier are assumed to be part of the same operation.
       id: operationid,
@@ -394,8 +395,10 @@ function log(req0, action, para0) {
     else if (operation.last && allSpanPromises[operationid]) {
       const promise = allSpanPromises[operationid];
       delete allSpanPromises[operationid];
+      /*
       promise.then(span => span ? span.end() : 'skipped')
         .catch(err2 => console.error(err2.message, err2.stack));
+      */
     }
     //  Write the log in the next tick, so we don't block.
     logTasks.push(loggingLog => (
