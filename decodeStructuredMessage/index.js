@@ -41,11 +41,11 @@ function wrap() {
     try {
       const decodedData = structuredMessage.decodeMessage(body.data);
       const result = Object.assign({}, body, decodedData);
-      sgcloud.log(req, 'decodeMessage', { result, body });
+      sgcloud.log(req, 'decodeMessage', { result, body, device: req.device });
       return Promise.resolve(result);
     } catch (error) {
       //  In case of error, return the original message.
-      sgcloud.log(req, 'decodeMessage', { error, body });
+      sgcloud.log(req, 'decodeMessage', { error, body, device: req.device });
       return Promise.resolve(body);
     }
   }
@@ -57,7 +57,7 @@ function wrap() {
     //  e.g. ctr (counter), lig (light level), tmp (temperature).
     return decodeMessage(req, body)
     //  Return the message with the body updated.
-      .then(updatedBody => Object.assign({}, msg, { body: updatedBody }))
+      .then(updatedBody => Object.assign({}, msg, { body: updatedBody, device: req.device }))
       .catch((error) => { throw error; });
   }
 
