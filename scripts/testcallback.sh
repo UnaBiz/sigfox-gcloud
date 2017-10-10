@@ -19,7 +19,7 @@ do
     --method POST \
     --header 'content-type: application/json' \
     --header 'cache-control: no-cache' \
-    --body-data '{"device":"2C30EA",  "data":"b0513801a421f0019405a500",  "time":"1507396971",  "duplicate":"false",  "snr":"18.86",  "station":"1D44",  "avgSnr":"15.54",  "lat":"1",  "lng":"104",  "rssi":"-123.00",  "seqNumber":"1501",  "ack":"false",  "longPolling":"false"}' \
+    --body-data '{"device":"2C30EA",  "data":"b0513801a421f0019405a500",  "time":"1507396972",  "duplicate":"false",  "snr":"18.86",  "station":"1D44",  "avgSnr":"15.54",  "lat":"1",  "lng":"104",  "rssi":"-123.00",  "seqNumber":"1504",  "ack":"false",  "longPolling":"false"}' \
     --output-document \
     - https://us-central1-${GCLOUD_PROJECT}.cloudfunctions.net/sigfoxCallback
 
@@ -32,7 +32,7 @@ do
       --method POST \
       --header 'content-type: application/json' \
       --header 'cache-control: no-cache' \
-      --body-data '{  "device":"2C30EB",  "data":"b0513801a421f0019405a500",  "time":"1507396971",  "duplicate":"false",  "snr":"18.86",  "station":"1D44",  "avgSnr":"15.54",  "lat":"1",  "lng":"104",  "rssi":"-123.00",  "seqNumber":"1501",  "ack":"false",  "longPolling":"false"}' \
+      --body-data '{  "device":"2C30EB",  "data":"b0513801a421f0019405a500",  "time":"1507396972",  "duplicate":"false",  "snr":"18.86",  "station":"1D44",  "avgSnr":"15.54",  "lat":"1",  "lng":"104",  "rssi":"-123.00",  "seqNumber":"1504",  "ack":"false",  "longPolling":"false"}' \
       --output-document \
       - https://us-central1-iteunabiz.cloudfunctions.net/sigfoxCallback
 
