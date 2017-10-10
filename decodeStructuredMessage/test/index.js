@@ -105,7 +105,35 @@ describe('decodeStructuredMessage', () => {
     if (!req.rootSpanPromise) throw new Error('rootSpanPromise missing');
     testRootTraceId = result.rootTrace.traceId;
     if (!testRootTraceId) throw new Error('traceId missing');
+    testRootTracePromise = req.rootTracePromise;
+    testRootSpanPromise = req.rootSpanPromise;
     return Promise.resolve(result);
+  });
+
+  it('should end root span', () => {
+    //  Test whether we can end a root span.
+    const msg = getTestMessage('number');
+    const body = msg.body;
+    req.body = body;
+    common.log(req, 'unittest', { testDevice, body, msg });
+    const promise = common.endRootSpan(req)
+      .then((result) => {
+        common.log(req, 'unittest', { result });
+        if (req.rootTracePromise) throw new Error('rootTrace should be null');
+        if (req.rootSpanPromise) throw new Error('rootSpan should be null');
+        testRootTracePromise = null;
+        testRootSpanPromise = null;
+        return result;
+      })
+      .catch((error) => {
+        common.error(req, 'unittest', { error });
+        debugger;
+        throw error;
+      })
+    ;
+    return Promise.all([
+      promise,
+    ]);
   });
 
   it('should get root span', () => {
@@ -215,6 +243,7 @@ describe('decodeStructuredMessage', () => {
     const promise = common.endRootSpan(req)
       .then((result) => {
         common.log(req, 'unittest', { result });
+        if (!req.rootTracePromise) testRootTracePromise = null;
         if (!req.rootSpanPromise) testRootSpanPromise = null;
         return result;
       })
