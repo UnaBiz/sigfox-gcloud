@@ -110,6 +110,28 @@ describe('decodeStructuredMessage', () => {
     return Promise.resolve(result);
   });
 
+  it('should create child span', () => {
+    //  Test whether we can create a root span.
+    const msg = getTestMessage('number');
+    const body = msg.body;
+    req.body = body;
+    const promise = common.createChildSpan(req, new Date().toISOString())
+      .then((result) => {
+        common.log(req, 'unittest', { result });
+        if (!result) throw new Error('child span missing');
+        return result;
+      })
+      .catch((error) => {
+        common.error(req, 'unittest', { error });
+        debugger;
+        throw error;
+      })
+    ;
+    return Promise.all([
+      promise,
+    ]);
+  });
+
   it('should end root span', () => {
     //  Test whether we can end a root span.
     const msg = getTestMessage('number');
@@ -123,6 +145,26 @@ describe('decodeStructuredMessage', () => {
         if (req.rootSpanPromise) throw new Error('rootSpan should be null');
         testRootTracePromise = null;
         testRootSpanPromise = null;
+        return result;
+      })
+      .catch((error) => {
+        common.error(req, 'unittest', { error });
+        debugger;
+        throw error;
+      })
+    ;
+    return Promise.all([
+      promise,
+    ]);
+  });
+
+  it('should sleep', () => {
+    const msg = getTestMessage('number');
+    const body = msg.body;
+    req.body = body;
+    const promise = common.sleep(req, 'OK', 10000)
+      .then((result) => {
+        common.log(req, 'unittest', { result });
         return result;
       })
       .catch((error) => {
@@ -150,8 +192,8 @@ describe('decodeStructuredMessage', () => {
     let rootTrace = null;
     let rootSpan = null;
     const promise = Promise.all([
-      testRootTracePromise.then(res => { rootTrace = res; }),
-      testRootSpanPromise.then(res => { rootSpan = res; }),
+      testRootTracePromise.then((res) => { rootTrace = res; }),
+      testRootSpanPromise.then((res) => { rootSpan = res; }),
     ])
       .then(() => {
         common.log(req, 'unittest', { testRootTracePromise, testRootSpanPromise });

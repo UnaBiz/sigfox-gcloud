@@ -30,7 +30,7 @@ if (process.env.FUNCTION_NAME) {
 
 function wrap() {
   //  Wrap the module into a function so that all Google Cloud resources are properly disposed.
-  const sgcloud = require('sigfox-gcloud');  // '../index');  For unit test
+  const sgcloud = require('sigfox-gcloud');
   const structuredMessage = require('./structuredMessage');
 
   function decodeMessage(req, body) {
@@ -84,14 +84,10 @@ module.exports = {
     //  Create a wrapper and serve the PubSub event.
     let wrapper = wrap();
     return wrapper.serveQueue(event)
-      .then((result) => {
-        wrapper = null;  //  Dispose the wrapper and all resources inside.
-        return result;
-      })
-      .catch((error) => {
-        wrapper = null;  //  Dispose the wrapper and all resources inside.
-        return error;  //  Suppress the error or Google Cloud will call the function again.
-      });
+      //  Dispose the wrapper and all resources inside.
+      .then((result) => { wrapper = null; return result; })
+      //  Suppress the error or Google Cloud will call the function again.
+      .catch((error) => { console.error(error.message, error.stack); wrapper = null; return error; });
   },
 
   //  For unit test only.

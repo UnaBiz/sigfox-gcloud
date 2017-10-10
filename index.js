@@ -41,7 +41,7 @@ const logName = 'sigfox-gcloud';  //  Name of the log to write to.
 //  region Utility Functions
 
 function sleep(req, res, millisec) {
-  //  Returns a promise that waits for the number of milliseconds.
+  //  Returns a promise that waits for the number of milliseconds and returns res.
   return new Promise((accept) => {
     setTimeout(() => {
       accept(res);
@@ -700,6 +700,7 @@ module.exports = {
   //  For unit test only.
   getRootSpan,
   endRootSpan,
+  createChildSpan,
 };
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
