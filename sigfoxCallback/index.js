@@ -151,7 +151,7 @@ function task(req, device, body0, msg) {
     //  Wait for all messages to complete sending.
     .then(() => Promise.all(saveMessagePromises
       .concat([  //  Also flush the log and wait for it to be completed.
-        sgcloud.flushLog(req).catch(err => err),
+        sgcloud.flushLog(req).catch(err => console.error(err.message, err.stack)),
       ])))
     .then(() => result)
     .catch((error) => { throw error; });
