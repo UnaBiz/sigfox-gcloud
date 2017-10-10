@@ -403,7 +403,7 @@ function log(req0, action, para0) {
       last: (para.err || para.result) ? true : false,
     };
     //  Instrument the function by creating a child span.
-    if (operation.first) allSpanPromises[operationid] = createChildSpan(req, action);
+    if (operation.first) allSpanPromises[operationid] = null; //// createChildSpan(req, action);
     else if (operation.last && allSpanPromises[operationid]) {
       const promise = allSpanPromises[operationid];
       delete allSpanPromises[operationid];
