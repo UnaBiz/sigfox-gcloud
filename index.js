@@ -1,8 +1,9 @@
 //  sigfox-gcloud is a framework for building a Sigfox server, based
-//  on Google Cloud Functions.  Here are the common functions used by
-//  Google Cloud Functions.  They should also work with Linux, MacOS
-//  and Ubuntu on Windows for unit test.
+//  on Google Cloud Functions.  This module contains the framework functions
+//  used by sigfox-gcloud Cloud Functions.  They should also work with Linux, MacOS
+//  and Ubuntu on Windows for unit testing.
 
+//  region Declarations
 /* eslint-disable camelcase, no-console, no-nested-ternary, global-require, import/no-unresolved, max-len */
 //  This is needed because Node.js doesn't cache DNS lookups and will cause DNS quota to be exceeded
 //  in Google Cloud.
@@ -36,6 +37,9 @@ const keyFilename = path.join(process.cwd(), 'google-credentials.json');
 const googleCredentials = isCloudFunc ? null : { projectId, keyFilename };
 const logName = 'sigfox-gcloud';  //  Name of the log to write to.
 
+//  //////////////////////////////////////////////////////////////////////////////////// endregion
+//  region Utility Functions
+
 function sleep(req, res, millisec) {
   //  Returns a promise that waits for the number of milliseconds.
   return new Promise((accept) => {
@@ -61,6 +65,9 @@ function removeNulls(obj0, level) {
   }
   return obj;
 }
+
+//  //////////////////////////////////////////////////////////////////////////////////// endregion
+//  region Instrumentation Functions: Trace the execution of this Sigfox Callback across multiple Cloud Functions
 
 function getSpanName(body) {
   //  Return a span name based on the device ID, sequence number and basestationTime:
@@ -125,6 +132,16 @@ function createChildSpan(req, name, labels) {
       return null;  //  Suppress the error.
     });
 }
+
+//  //////////////////////////////////////////////////////////////////////////////////// endregion
+//  region Logging Functions: Log to Google Cloud Logging, Error Reporting and PubSub
+
+//  Write log records in batches by 5 records normally, max 10 records when flushing.
+const batchSize = flush => (flush ? 5 : 10);
+const logTasks = [];  //  List of logging tasks to be completed.  They return a log entry.
+let taskCount = 0;  //  Number of logging tasks completed so far.
+//  Maps operationid to the promise for the child span, for instrumentation.
+const allSpanPromises = {};
 
 function createTraceID(now0) {
   //  Return a trace ID array with local time MMSS-uuid for display later.
@@ -193,13 +210,6 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
     return Promise.resolve(err);
   }
 } /* eslint-enable global-require, no-param-reassign */
-
-//  Write log records in batches by 5 records normally, max 10 records when flushing.
-const batchSize = flush => (flush ? 5 : 10);
-const logTasks = [];  //  List of logging tasks to be completed.  They return a log entry.
-let taskCount = 0;  //  Number of logging tasks completed so far.
-//  Maps operationid to the promise for the child span, for instrumentation.
-const allSpanPromises = {};
 
 function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
@@ -420,6 +430,9 @@ function log(req0, action, para0) {
   }
 } /* eslint-enable no-param-reassign, global-require */
 
+//  //////////////////////////////////////////////////////////////////////////////////// endregion
+//  region Messaging Functions: Dispatch messages between Cloud Functions via PubSub
+
 function isProcessedMessage(/* req, message */) {
   //  Return true if this message is being or has been processed recently by this server
   //  or another server.  We check the central queue.  In case of error return false.
@@ -545,6 +558,8 @@ function dispatchMessage(req, oldMessage, device) {
     .then(() => result);
 }
 
+//  //////////////////////////////////////////////////////////////////////////////////// endregion
+//  region Main Function
 
 function runTask(req, event, task, device, body, message) {
   //  The task is the pluggable function, provided by the caller,
@@ -579,10 +594,12 @@ function main(event, task) {
   const device = message ? message.device : null;
   const body = message ? message.body : null;
   req.uuid = body ? body.uuid : 'missing_uuid';
-  req.body = body;
+  Object.assign(req, { device, body });  //  For logging and instrumentation.
   if (message.isDispatched) delete message.isDispatched;
-  //  Continue the root-level span created in sigfoxCallback to trace the request across Cloud Functions.
+
+  //  Continue the root-level span (created in sigfoxCallback) to trace this request across Cloud Functions.
   getRootSpan(req);
+  //  Write the first log record in Google Cloud Logging as "start".
   log(req, 'start', { device, body, event, message, googleCredentials });
 
   //  If the message is already processed by another server, skip it.
@@ -598,9 +615,12 @@ function main(event, task) {
     //  Suppress all errors else Google will retry the message.
     .catch(error => log(req, 'end', { error, device, body, event, message }))
     //  Flush the log and wait for it to be completed.
-    .then(() => flushLog({}))
-    .catch(error => error);
+    .then(() => flushLog(req).catch((error) => { console.error(error.message, error.stack); return error; }))
+    .catch((error) => { console.error(error.message, error.stack); return error; });
 }
+
+//  //////////////////////////////////////////////////////////////////////////////////// endregion
+//  region Exports
 
 module.exports = {
   projectId: process.env.GCLOUD_PROJECT,
@@ -623,3 +643,5 @@ module.exports = {
   //  For unit test only.
   endRootSpan,
 };
+
+//  //////////////////////////////////////////////////////////////////////////////////// endregion
