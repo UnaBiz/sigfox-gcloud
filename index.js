@@ -120,8 +120,12 @@ function endRootSpan(req) {
     });
 }
 
-function createChildSpan(req, name, labels) {
+function createChildSpan(req, name0, labels) {
   //  Create a child span to trace a task in this module.  Returns a promise.
+  const name = [
+    process.env.FUNCTION_NAME || 'missing_function',
+    (name0 || 'missing_name').split('/').join(' / '),
+  ].join(' / ');
   return getRootSpan(req)
     .then((rootSpan) => {
       if (!rootSpan) return null;
