@@ -384,7 +384,6 @@ function log(req0, action, para0) {
       action,
       (req.traceid && req.traceid[0]) ? req.traceid[0] : 'missing_traceid',
     ].join('_');
-    //// const operationid = action; ////
     const operation = {
       //  Optional. An arbitrary operation identifier. Log entries with the same identifier are assumed to be part of the same operation.
       id: operationid,
@@ -580,7 +579,10 @@ function main(event, task) {
   const device = message ? message.device : null;
   const body = message ? message.body : null;
   req.uuid = body ? body.uuid : 'missing_uuid';
+  req.body = body;
   if (message.isDispatched) delete message.isDispatched;
+  //  Continue the root-level span created in sigfoxCallback to trace the request across Cloud Functions.
+  getRootSpan(req);
   log(req, 'start', { device, body, event, message, googleCredentials });
 
   //  If the message is already processed by another server, skip it.
@@ -606,7 +608,6 @@ module.exports = {
   getCredentials: () => googleCredentials,
   sleep,
   startRootSpan,
-  getRootSpan,
   log,
   error: log,
   flushLog,
