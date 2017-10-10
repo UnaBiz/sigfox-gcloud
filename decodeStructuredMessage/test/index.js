@@ -1,19 +1,28 @@
 //  Unit Test for decodeStructuredMessage
 /* global describe:true, it:true, beforeEach:true */
 /* eslint-disable max-len, import/newline-after-import,import/no-extraneous-dependencies,no-unused-vars,no-debugger */
+const mockery = require('mockery');
 const chai = require('chai');
 const chaiAsPromised = require('chai-as-promised');
 const should = chai.should();
 chai.use(chaiAsPromised);
 
+//  Use mockery to substitute  '../../index' for 'sigfox-gcloud'.
 const common = require('../../index');
+mockery.enable();
+mockery.warnOnUnregistered(false);
+mockery.registerMock('sigfox-gcloud', common);
+
 const moduleTested = require('../index');  //  Module to be tested, i.e. the parent module.
 const structuredMessage = require('../structuredMessage');  //  Other modules to be tested.
 const moduleName = 'decodeStructuredMessage';
+
 let req = {};
+let testRootTraceId = null;
+let testRootTracePromise = null;
 let testRootSpanPromise = null;
 
-//  Test data
+//  region Test data
 /* eslint-disable quotes, max-len */
 const testDevice = 'UNITTEST1';
 const testData = {
@@ -58,6 +67,7 @@ const testMessage = (timestamp, data) => ({
   body: testBody(timestamp, data),
   type: moduleName,
 });
+//  endregion Test Data
 
 function startDebug() {
   //  Stub for setting breakpoints on exception.
@@ -77,6 +87,7 @@ describe('decodeStructuredMessage', () => {
     //  Erase the request object before every test.
     startDebug();
     req = { unittest: true };
+    if (testRootTracePromise) req.rootTracePromise = testRootTracePromise;
     if (testRootSpanPromise) req.rootSpanPromise = testRootSpanPromise;
   });
 
@@ -85,11 +96,54 @@ describe('decodeStructuredMessage', () => {
     const msg = getTestMessage('number');
     const body = msg.body;
     req.body = body;
-    common.log(req, 'unittest', { testDevice, body, msg });
+    //  Don't log before startRootSpan.
     const result = common.startRootSpan(req);
-    if (!result) throw new Error('rootSpan missing');
-    testRootSpanPromise = req.rootSpanPromise;
-    if (!testRootSpanPromise) throw new Error('rootSpanPromise missing');
+    if (!result) throw new Error('result missing');
+    if (!result.rootTrace) throw new Error('rootTrace missing');
+    if (!result.rootSpan) throw new Error('rootSpan missing');
+    if (!req.rootTracePromise) throw new Error('rootTracePromise missing');
+    if (!req.rootSpanPromise) throw new Error('rootSpanPromise missing');
+    testRootTraceId = result.rootTrace.traceId;
+    if (!testRootTraceId) throw new Error('traceId missing');
+    return Promise.resolve(result);
+  });
+
+  it('should get root span', () => {
+    //  Test whether we can retrieve a root span by rootSpanId.
+    const msg = getTestMessage('number');
+    const body = msg.body;
+    req.body = body;
+    //  Don't log before getRootSpan.
+    const span = common.getRootSpan(req, testRootTraceId);
+    testRootTracePromise = span.rootTracePromise;
+    testRootSpanPromise = span.rootSpanPromise;
+    if (!testRootTracePromise) throw new Error('rootTrace missing');
+    if (!testRootSpanPromise) throw new Error('rootSpan missing');
+    let rootTrace = null;
+    let rootSpan = null;
+    const promise = Promise.all([
+      testRootTracePromise.then(res => { rootTrace = res; }),
+      testRootSpanPromise.then(res => { rootSpan = res; }),
+    ])
+      .then(() => {
+        common.log(req, 'unittest', { testRootTracePromise, testRootSpanPromise });
+        if (!req.rootTracePromise) throw new Error('rootTracePromise missing');
+        if (!req.rootSpanPromise) throw new Error('rootSpanPromise missing');
+        if (!rootTrace) throw new Error('rootTrace missing');
+        if (!rootSpan) throw new Error('rootSpan missing');
+        if (rootTrace.traceId !== testRootTraceId) throw new Error('rootTraceId changed');
+        testRootTraceId = null;
+        return 'OK';
+      })
+      .catch((error) => {
+        common.error(req, 'unittest', { error });
+        debugger;
+        throw error;
+      })
+    ;
+    return Promise.all([
+      promise,
+    ]);
   });
 
   it('should publish message', () => {
@@ -149,6 +203,7 @@ describe('decodeStructuredMessage', () => {
     result.should.have.property('d1').equals('zoe');
     result.should.have.property('d2').equals('ell');
     result.should.have.property('d3').equals('joy');
+    return Promise.resolve(result);
   });
 
   it('should end root span', () => {

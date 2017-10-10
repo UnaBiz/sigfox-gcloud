@@ -160,7 +160,9 @@ exports.main = (req0, res) => {
   req.res = res;
   req.starttime = Date.now();
   //  Start a root-level span to trace the request across Cloud Functions.
-  sgcloud.startRootSpan(req);
+  const rootTrace = sgcloud.startRootSpan(req).rootTrace;
+  const rootTraceId = rootTrace.traceId;  //  Pass to other Cloud Functions.
+
   const event = null;
   const type = (req.query && req.query.type) || null;
   const uuid0 = uuid.v4();  //  Assign a UUID for message tracking.
@@ -177,23 +179,22 @@ exports.main = (req0, res) => {
     : req.query.device
       ? req.query.device.toUpperCase()
       : null;
-  const oldMessage = { device, body, type };
+  const oldMessage = { device, body, type, rootTraceId };
   let updatedMessage = oldMessage;
-  sgcloud.log(req, 'start', { device, body, event });
+  sgcloud.log(req, 'start', { device, body, event, rootTraceId });
 
   //  Now we run the task to publish the message to the 3 queues.
   //  Wait for the task to complete then dispatch to next step.
   const runTask = task(req, device, body, oldMessage)
-    .then(result => sgcloud.log(req, 'task_result', { result, device, body, event, oldMessage }))
+    .then(result => sgcloud.log(req, 'result', { result, device, body, event, oldMessage }))
     .then((result) => { updatedMessage = result; return result; })
-    .catch(error => sgcloud.log(req, 'task_error', { error, device, body, event, oldMessage }));
-  return runTask
-  //  Dispatch will be skipped because isDispatched is set.
+    .catch(error => sgcloud.log(req, 'error', { error, device, body, event, oldMessage }));
+  const dispatchTask = runTask
+    //  Dispatch will be skipped because isDispatched is set.
     .then(() => sgcloud.dispatchMessage(req, updatedMessage, device))
-    .then(result => sgcloud.log(req, 'end', { result, device, body, event, updatedMessage }))
-    //  Suppress all errors else Google will retry the message.
-    .catch(error => sgcloud.log(req, 'end', { error, device, body, event, updatedMessage }))
+    .catch(error => sgcloud.log(req, 'error', { error, device, body, event, updatedMessage }));
+  return dispatchTask
     //  Flush the log and wait for it to be completed.
-    .then(() => sgcloud.flushLog(req).catch((error) => { console.error(error.message, error.stack); return error; }))
-    .catch((error) => { console.error(error.message, error.stack); return error; });
+    .then(() => sgcloud.endTask(req))
+    .then(() => updatedMessage);
 };

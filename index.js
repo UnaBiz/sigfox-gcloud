@@ -66,13 +66,25 @@ function removeNulls(obj0, level) {
   return obj;
 }
 
+function dumpError(error) {
+  //  Dump the error to the console and suppress the error.  Return the error.
+  console.error(error.message, error.stack);
+  return error;
+}
+
+function dumpNullError(error) {
+  //  Dump the error to the console and suppress the error.  Return null.
+  console.error(error.message, error.stack);
+  return null;
+}
+
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Instrumentation Functions: Trace the execution of this Sigfox Callback across multiple Cloud Functions
 
 function getSpanName(body) {
   //  Return a span name based on the device ID, sequence number and basestationTime:
   //    device_seqNumber_baseStationTime
-  //  Will be used to track the request end to end.  Must not include any url-unsafe chars.
+  //  Will be used to trace the request across Cloud Functions.
   if (!body) return 'missing_body';
   const device = body.device ? body.device.toUpperCase() : 'missing_device';
   const seqNumber = body.seqNumber || 'missing_seqNumber';
@@ -81,60 +93,87 @@ function getSpanName(body) {
 }
 
 function startRootSpan(req) {
-  //  Start a root-level span to trace the request across Cloud Functions.
+  //  Start a root-level trace and span to trace the request across Cloud Functions.
+  //  Returns { rootTrace, rootSpan } objects.
   const rootSpanName = getSpanName(req.body);
-  const rootSpan = tracing.startRootSpan(rootSpanName);
-  Object.assign(req, { rootSpanPromise: Promise.resolve(rootSpan) });  //  Cache in the request object.
-  return rootSpan;
+  //  Create the root trace.
+  const labels = {};
+  const rootTrace = tracing.startTrace();
+  //  Start the span.
+  const rootSpan = rootTrace.startSpan(rootSpanName, labels);
+  rootSpan.end = rootTrace.end.bind(rootTrace);
+  //  Cache the root trace and span in the request object.
+  Object.assign(req, {
+    rootTracePromise: Promise.resolve(rootTrace),
+    rootSpanPromise: Promise.resolve(rootSpan),
+  });
+  return { rootTrace, rootSpan };
 }
 
-function getRootSpan(req) {
-  //  Return the current root span for tracing the request across Cloud Functions.
-  //  Returns a promise.
-  if (req.rootSpanPromise) return req.rootSpanPromise;
-  const rootSpanName = getSpanName(req.body);
-  //  Cache in the request object.
+function getRootSpan(req, rootTraceId0) {
+  //  Return the current root trace and span for tracing the request across Cloud Functions,
+  //  based on the rootTraceId passed by the previous Cloud Function.  Return the
+  //  cached copy from req if available. Returns 2 promises: { rootTracePromise, rootSpanPromise }
+  if (req.rootTracePromise && req.rootSpanPromise) {
+    //  Return from cache.
+    return {
+      rootTracePromise: req.rootTracePromise,
+      rootSpanPromise: req.rootSpanPromise,
+    };
+  }
+  const rootTraceId = rootTraceId0 || req.rootTraceId;
+  if (!rootTraceId) {
+    //  Missing trace ID.
+    dumpError(new Error('missing_traceid'));
+    return {
+      rootTracePromise: Promise.resolve(null),
+      rootSpanPromise: Promise.resolve(null),
+    };
+  }
+  //  Else fetch and cache the trace and span in the request object.
   //  eslint-disable-next-line no-param-reassign
-  req.rootSpanPromise = new Promise((accept, reject) =>
-      tracing.getTrace(rootSpanName, (err, res) =>
+  req.rootTracePromise = new Promise((accept, reject) =>
+      tracing.getTrace(rootTraceId, (err, res) =>
         (err ? reject(err) : accept(res))))
-    .catch((error) => {
-      console.error(error.message, error.stack);
-      return null;  //  Suppress the error.
-    });
-  return req.rootSpanPromise;
+    .catch(dumpNullError);  //  eslint-disable-next-line no-param-reassign
+  req.rootSpanPromise = req.rootTracePromise
+    .then((rootTrace) => {
+      if (!rootTrace) return null;
+      return (rootTrace.spans && rootTrace.spans[0]) ?
+        rootTrace.spans[0] : null;
+    })
+    .catch(dumpNullError);
+  return {
+    rootTracePromise: req.rootTracePromise,
+    rootSpanPromise: req.rootSpanPromise,
+  };
 }
 
 function endRootSpan(req) {
   //  End the current root-level span for tracing the request across Cloud Functions.
   //  Returns a promise.
-  return getRootSpan(req)
+  return getRootSpan(req).rootSpanPromise
     .then((rootSpan) => {
       if (rootSpan) rootSpan.end();  // eslint-disable-next-line no-param-reassign
+      if (req.rootTracePromise) delete req.rootTracePromise;  // eslint-disable-next-line no-param-reassign
       if (req.rootSpanPromise) delete req.rootSpanPromise;  //  Remove cache.
       return 'OK';
     })
-    .catch((error) => {
-      console.error(error.message, error.stack);
-      return null;  //  Suppress the error.
-    });
+    .catch(dumpNullError);
 }
 
 function createChildSpan(req, name0, labels) {
   //  Create a child span to trace a task in this module.  Returns a promise.
   const name = [
-    process.env.FUNCTION_NAME || 'missing_function',
+    functionName,
     (name0 || 'missing_name').split('/').join(' / '),
   ].join(' / ');
-  return getRootSpan(req)
+  return getRootSpan(req).rootSpanPromise
     .then((rootSpan) => {
       if (!rootSpan) return null;
       return rootSpan.startSpan(name, labels);
     })
-    .catch((error) => {
-      console.error(error.message, error.stack);
-      return null;  //  Suppress the error.
-    });
+    .catch(dumpNullError);
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
@@ -204,21 +243,21 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
       promises = promises
         .then(() => publishJSON(req, topic, msg))
         //  Suppress any errors so logging can continue.
-        .catch((err) => { console.error(config, err.message, err.stack); return err; })
+        .catch(dumpError)
         .then((res) => { result.push(res); });
     });
     return promises //  Suppress any errors.
-      .catch((err) => { console.error(err.message, err.stack); return err; })
+      .catch(dumpError)
       .then(() => result);
   } catch (err) {
-    console.error(err.message, err.stack);
-    return Promise.resolve(err);
+    return Promise.resolve(dumpError(err));
   }
 } /* eslint-enable global-require, no-param-reassign */
 
 function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
   //  If flush is true, flush all logs without waiting for the tick, i.e. when quitting.
+  //  Returns a promise.
   if (logTasks.length === 0) return Promise.resolve('OK');
   //  Create logging client here to prevent expired connection.
   const loggingLog = loggingLog0 ||  //  Mark circular refs by [Circular]
@@ -235,9 +274,8 @@ function writeLog(req, loggingLog0, flush) {
     if (logTasks.length === 0) break;
     const task = logTasks.shift();
     if (!task) break;
-    batch.push(
-      task(loggingLog)
-        .catch((err) => { console.error(err.message, err.stack); return null; }));
+    //  Add the task to the batch.
+    batch.push(task(loggingLog).catch(dumpNullError));
     taskCount += 1;
   }
   // console.log(`______ ${taskCount} / ${batch.length} / ${logTasks.length}`);
@@ -247,19 +285,17 @@ function writeLog(req, loggingLog0, flush) {
       //  Write the non-null records into Google Cloud.
       const entries = res.filter(x => x);
       if (entries.length === 0) return null;
-      return loggingLog.write(entries);
+      return loggingLog.write(entries).catch(dumpError);
     })
-    .catch((err) => { console.error(err.message, err.stack); return err; })
     .then(() => {  //  If flushing, don't wait for the tick.
       if (flush) {
-        return writeLog(req, loggingLog, flush)
-          .catch((err) => { console.error(err.message, err.stack); return err; });
+        return writeLog(req, loggingLog, flush).catch(dumpError);
       }
       // eslint-disable-next-line no-use-before-define
       scheduleLog(req, loggingLog);  //  Wait for next tick before writing.
       return null;
     })
-    .catch((err) => { console.error(err.message, err.stack); return err; });
+    .catch(dumpError);
 }
 
 function scheduleLog(req, loggingLog0) {
@@ -268,17 +304,16 @@ function scheduleLog(req, loggingLog0) {
   const loggingLog = loggingLog0;
   process.nextTick(() => {
     try {
-      writeLog(req, loggingLog);
-    } catch (err2) {
-      console.error(err2.message, err2.stack);
-    }
+      writeLog(req, loggingLog)
+        .catch(dumpError);
+    } catch (err) { dumpError(err); }
   });
 }
 
 function flushLog(req) {
   //  We are about to quit.  Write all log items.
   return writeLog(req, null, true)
-    .catch((err) => { console.error(err.message, err.stack); return err; });
+    .catch(dumpError);
 }
 
 function deferLog(req, action, para0, record, now, operation, loggingLog) { /* eslint-disable no-param-reassign */
@@ -290,7 +325,7 @@ function deferLog(req, action, para0, record, now, operation, loggingLog) { /* e
     const para = removeNulls(para0 || {});
     //  Log to PubSub for easier analysis.
     return logQueue(req, action, para)
-      .catch((err) => { console.error(err.message, err.stack); return err; })  //  Suppress error.
+      .catch(dumpError)
       .then(() => {
         //  Log the parameters.
         //  noinspection Eslint
@@ -348,10 +383,9 @@ function deferLog(req, action, para0, record, now, operation, loggingLog) { /* e
         }
         return loggingLog.entry(metadata, event);
       })
-      .catch((err) => { console.error(err.message, err.stack); return null; });  //  Suppress error.
+      .catch(dumpNullError);
   } catch (err) {
-    console.error(err.message, err.stack);
-    return Promise.resolve(null);  //  Suppress error.
+    return Promise.resolve(dumpNullError(err));
   }
 } /* eslint-enable no-param-reassign */
 
@@ -372,14 +406,14 @@ function log(req0, action, para0) {
     //  Compute the duration in seconds with 1 decimal place.
     if (req.starttime) para0.duration = parseInt((now - req.starttime) / 100, 10) / 10.0;
     else req.starttime = now;
-    if (err) console.error(err.message, err.stack);
+    if (err) dumpError(err);
     if (err && isProduction) {
       try {
         //  Report the error to the Stackdriver Error Reporting API
         const errorReport = require('@google-cloud/error-reporting')({ reportUnhandledRejections: true });
 
         errorReport.report(err);
-      } catch (err2) { console.error(err2.message, err2.stack); }
+      } catch (err2) { dumpError(err2); }
     }
     const record = { timestamp: `${now}`, action };
     if (err) {
@@ -416,21 +450,19 @@ function log(req0, action, para0) {
       const promise = allSpanPromises[operationid];
       //  Change the promise to return null in case we call twice.
       allSpanPromises[operationid] = Promise.resolve(null);
-      promise.then(span => (span ? span.end() : 'skipped'))
-        .catch(err2 => console.error(err2.message, err2.stack));
+      promise
+        .then(span => (span ? span.end() : 'skipped'))
+        .catch(dumpError);
     }
     //  Write the log in the next tick, so we don't block.
     logTasks.push(loggingLog => (
       deferLog(req, action, para, record, now, operation, loggingLog)
-        .catch((err2) => {
-          console.error(err2.message, err2.stack);
-          return err2;
-        })
+        .catch(dumpError)
     ));
     if (logTasks.length === 1) scheduleLog({});  //  Means nobody else has started schedule.
     return err || para.result || null;
   } catch (err) {
-    console.error(err.message, err.stack);
+    dumpError(err);
     return para0 ? (para0.err || para0.error || para0.result || null) : null;
   }
 } /* eslint-enable no-param-reassign, global-require */
@@ -452,7 +484,8 @@ function publishMessage(req, oldMessage, device, type) {
   //  If message contains options.unpackBody=true, then send message.body as the root of the
   //  message.  This is used for sending log messages to BigQuery via Google Cloud DataFlow.
   //  The caller must have called server/bigquery/validateLogSchema.
-  //  Returns a promise for the PubSub topic.publish result.
+  //  Returns a promise for the PubSub publish result.
+  log(req, 'publishMessage', { device: oldMessage.device, type });
   const topicName0 = device
     ? `sigfox.devices.${device}`
     : type
@@ -533,18 +566,14 @@ function dispatchMessage(req, oldMessage, device) {
 
   //  If already dispatched, return.
   if (oldMessage.isDispatched) return Promise.resolve(oldMessage);
+  log(req, 'dispatchMessage', { device });
   //  Update the message history.
   const message = updateMessageHistory(req, oldMessage);
   if (!message.route || message.route.length === 0) {
-    //  No more steps to dispatch, so end the root span for tracing the request.
+    //  No more steps to dispatch, so exit.
     const result = message;
     log(req, 'dispatchMessage', { result, status: 'no_route', message, device });
-    return endRootSpan(req)
-      .then(() => result)
-      .catch((error) => {
-        console.error(error.message, error.stack);
-        return result;
-      });
+    return Promise.resolve(result);
   }
   //  Get the next step and publish the message there.
   //  Don't use shift() because it mutates the original object:
@@ -572,13 +601,26 @@ function runTask(req, event, task, device, body, message) {
   //  e.g. decodeStructuredMessage, logToGoogleSheets.
   //  Wait for the task to complete then dispatch to next step.
   //  Returns a promise for the dispatched message.
+  log(req, 'task', { device, body, event, message });
   let updatedMessage = message;
   return task(req, device, body, message)
-    .then(result => log(req, 'result', { result, device, body, event, message }))
+    .then(result => log(req, 'task', { result, device, body, event, message }))
     .then((result) => { updatedMessage = result; return result; })
-    .catch(error => log(req, 'failed', { error, device, body, event, message }))
+    .catch(error => log(req, 'task', { error, device, body, event, message }))
     .then(() => dispatchMessage(req, updatedMessage, device))
     .catch((error) => { throw error; });
+}
+
+function endTask(req) {
+  //  Clean up before exiting by flushing the Google Cloud Log and Google Cloud Trace.
+  //  Don't throw any errors here because the logs have closed.
+  //  Returns a promise.
+  return Promise.all([
+    //  End the root span for Google Cloud Trace to write the trace.
+    endRootSpan(req).catch(dumpError),
+    //  Flush the log and wait for it to be completed.
+    flushLog(req).catch(dumpError),
+  ]);
 }
 
 function main(event, task) {
@@ -598,12 +640,13 @@ function main(event, task) {
   const message = JSON.parse(Buffer.from(event.data.data, 'base64').toString());
   const device = message ? message.device : null;
   const body = message ? message.body : null;
+  const rootTraceId = message.rootTraceId || null;
   req.uuid = body ? body.uuid : 'missing_uuid';
-  Object.assign(req, { device, body });  //  For logging and instrumentation.
+  Object.assign(req, { device, body, rootTraceId });  //  For logging and instrumentation.
   if (message.isDispatched) delete message.isDispatched;
 
   //  Continue the root-level span (created in sigfoxCallback) to trace this request across Cloud Functions.
-  getRootSpan(req);
+  getRootSpan(req, rootTraceId);
   //  Write the first log record in Google Cloud Logging as "start".
   log(req, 'start', { device, body, event, message, googleCredentials });
 
@@ -614,14 +657,14 @@ function main(event, task) {
         ? log(req, 'skip', { result: message, isProcessed, device, body, event, message })
         //  Else wait for the task to complete then dispatch the next step.
         : runTask(req, event, task, device, body, message)
+          //  Suppress all errors else Google will retry the message.
+          .catch(dumpError)
     ))
     //  Log the final result i.e. the dispatched message.
-    .then(result => log(req, 'end', { result, device, body, event, message }))
-    //  Suppress all errors else Google will retry the message.
-    .catch(error => log(req, 'end', { error, device, body, event, message }))
+    .then(result => log(req, 'result', { result, device, body, event, message }))
     //  Flush the log and wait for it to be completed.
-    .then(() => flushLog(req).catch((error) => { console.error(error.message, error.stack); return error; }))
-    .catch((error) => { console.error(error.message, error.stack); return error; });
+    .then(() => endTask(req))
+    .catch(dumpError);
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
@@ -630,22 +673,32 @@ function main(event, task) {
 module.exports = {
   projectId: process.env.GCLOUD_PROJECT,
   functionName: process.env.FUNCTION_NAME || 'unknown_function',
-  getCredentials: () => googleCredentials,
   sleep,
+  dumpError,
+  dumpNullError,
   startRootSpan,
   log,
   error: log,
   flushLog,
-  logQueueConfig: [],   //  Log to PubSub: array of { projectId, topicName }
   logQueue,
   publishMessage,
   updateMessageHistory,
   dispatchMessage,
   main,
+  endTask,
+
+  //  Optional Config
+  //  Log to PubSub: Specify array of { projectId, topicName }
+  logQueueConfig: [],
+  setLogQueue: (config) => { module.exports.logQueueConfig = config; },
+
   //  If required, remap the projectId and topicName to deliver to another queue.
   transformRoute: (req, type, device, credentials, topicName) =>
     ({ credentials: Object.assign({}, credentials), topicName }),
+  setRoute: (route) => { module.exports.transformRoute = route; },
+
   //  For unit test only.
+  getRootSpan,
   endRootSpan,
 };
 
