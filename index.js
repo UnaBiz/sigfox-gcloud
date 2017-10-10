@@ -606,6 +606,7 @@ module.exports = {
   getCredentials: () => googleCredentials,
   sleep,
   startRootSpan,
+  getRootSpan,
   log,
   error: log,
   flushLog,
