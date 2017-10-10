@@ -151,7 +151,7 @@ function task(req, device, body0, msg) {
     //  Wait for all messages to complete sending.
     .then(() => Promise.all(saveMessagePromises
       .concat([  //  Also flush the log and wait for it to be completed.
-        sgcloud.flushLog(req).catch(err => console.error(err.message, err.stack)),
+        ////sgcloud.flushLog(req).catch(err => console.error(err.message, err.stack)),
       ])))
     .then(() => result)
     .catch((error) => { throw error; });
@@ -165,7 +165,7 @@ exports.main = (req0, res) => {
   req.res = res;
   req.starttime = Date.now();
   //  Start a root-level span to trace the request across Cloud Functions.
-  //  sgcloud.startRootSpan(req);
+  ////sgcloud.startRootSpan(req);
   const event = null;
   const type = (req.query && req.query.type) || null;
   const uuid0 = uuid.v4();  //  Assign a UUID for message tracking.
@@ -197,6 +197,6 @@ exports.main = (req0, res) => {
     //  Suppress all errors else Google will retry the message.
     .catch(error => sgcloud.log(req, 'end', { error, device, body, event, updatedMessage }))
     //  Flush the log and wait for it to be completed.
-    .then(() => sgcloud.flushLog({}))
-    .catch(error => error);
+    .then(() => sgcloud.flushLog({}).catch((error) => { console.error(error.message, error.stack); return error; }))
+    .catch((error) => { console.error(error.message, error.stack); return error; });
 };

@@ -311,7 +311,7 @@ function deferLog(req, action, para0, record, now, operation, loggingLog) { /* e
         const metadata = {
           timestamp,
           severity: level.toUpperCase(),
-          operation,
+          ////operation,
           resource: {
             type: 'cloud_function',
             labels: { function_name: functionName },
