@@ -414,7 +414,8 @@ function log(req0, action, para0) {
     if (operation.first) allSpanPromises[operationid] = createChildSpan(req, action);
     else if (operation.last && allSpanPromises[operationid]) {
       const promise = allSpanPromises[operationid];
-      delete allSpanPromises[operationid];
+      //  Change the promise to return null in case we call twice.
+      allSpanPromises[operationid] = Promise.resolve(null);
       promise.then(span => (span ? span.end() : 'skipped'))
         .catch(err2 => console.error(err2.message, err2.stack));
     }
