@@ -73,11 +73,11 @@ function wrap() {
         const result = res.split(' ').join('').split(',');  //  Remove spaces.
         defaultRoute = result;
         defaultRouteExpiry = Date.now() + routeExpiry;
-        sgcloud.log(req, 'getRoute', { result });
+        sgcloud.log(req, 'getRoute', { result, device: req.device });
         return result;
       })
       .catch((error) => {
-        sgcloud.log(req, 'getRoute', { error });
+        sgcloud.log(req, 'getRoute', { error, device: req.device });
         //  In case of error, reuse the previous route if any.
         if (defaultRoute) return defaultRoute;
         throw error;
