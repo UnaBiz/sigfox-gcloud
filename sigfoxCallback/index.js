@@ -11,6 +11,8 @@
 //  This code is critical, all changes must be reviewed.  It must be
 //  kept as simple as possible to reduce the chance of failure.
 
+////process.env.NODE_DEBUG = 'request'; ////
+
 /* eslint-disable camelcase, no-console, no-nested-ternary, import/no-dynamic-require,
   import/newline-after-import, import/no-unresolved, global-require, max-len */
 //  Enable DNS cache in case we hit the DNS quota for Google Cloud Functions.
@@ -71,7 +73,7 @@ function saveMessage(req, device, type, body) {
   const message0 = { device, type, body, query };
   const message = sgcloud.updateMessageHistory(req, message0, device);
   //  Get a list of promises, one for each publish operation to each queue.
-  const saveMessagePromises = [];
+  const promises = [];
   for (const queue of queues) {
     //  Send message to each queue, either the device ID or message type queue.
     const promise = sgcloud.publishMessage(req, message, queue.device, queue.type)
@@ -79,10 +81,13 @@ function saveMessage(req, device, type, body) {
         sgcloud.log(req, 'saveMessage', { error, device, type, body });
         return error;  //  Suppress the error so other sends can proceed.
       });
-    saveMessagePromises.push(promise);
+    promises.push(promise);
   }
-  //  Return the promises (without waiting for completion) and set the dispatch flag so we don't resend.
-  return Object.assign({}, message, { isDispatched: true, saveMessagePromises });
+  //  Wait for the messages to be published to the queues.
+  return Promise.all(promises)
+  //  Return the message with dispatch flag set so we don't resend.
+    .then(() => Object.assign({}, message, { isDispatched: true }))
+    .catch((error) => { throw error; });
 }
 
 function parseBool(s) {
@@ -137,22 +142,14 @@ function task(req, device, body0, msg) {
   const type = msg.type;
   //  Convert the text fields into number and boolean values.
   const body = parseSIGFOXMessage(req, body0);
+  let result = null;
   //  Send the Sigfox message to the 3 queues.
-  const result = saveMessage(req, device, type, body);
-
-  //  Read the promises for sending the messages.  We wait for them to complete after everything else is done.
-  const saveMessagePromises = result.saveMessagePromises || [];
-  if (result.saveMessagePromises) delete result.saveMessagePromises;
-
-  //  Wait for the downlink data if any.
-  return getResponse(req, device, body0, msg)
-    //  Return the response to Sigfox Cloud then wait for anything outstanding.
+  return saveMessage(req, device, type, body)
+    .then((newMessage) => { result = newMessage; return newMessage; })
+    //  Wait for the downlink data if any.
+    .then(() => getResponse(req, device, body0, msg))
+    //  Return the response to Sigfox Cloud.
     .then(response => res.status(200).json(response).end())
-    //  Wait for all messages to complete sending.
-    .then(() => Promise.all(saveMessagePromises
-      .concat([  //  Also flush the log and wait for it to be completed.
-        ////sgcloud.flushLog(req).catch(err => console.error(err.message, err.stack)),
-      ])))
     .then(() => result)
     .catch((error) => { throw error; });
 }
@@ -164,8 +161,6 @@ exports.main = (req0, res) => {
   const req = Object.assign({}, req0);  //  Clone the request.
   req.res = res;
   req.starttime = Date.now();
-  //  Start a root-level span to trace the request across Cloud Functions.
-  ////sgcloud.startRootSpan(req);
   const event = null;
   const type = (req.query && req.query.type) || null;
   const uuid0 = uuid.v4();  //  Assign a UUID for message tracking.
@@ -193,10 +188,12 @@ exports.main = (req0, res) => {
     .then((result) => { updatedMessage = result; return result; })
     .catch(error => sgcloud.log(req, 'task_error', { error, device, body, event, oldMessage }));
   return runTask
+  //  Dispatch will be skipped because isDispatched is set.
+    .then(() => sgcloud.dispatchMessage(req, updatedMessage, device))
     .then(result => sgcloud.log(req, 'end', { result, device, body, event, updatedMessage }))
     //  Suppress all errors else Google will retry the message.
     .catch(error => sgcloud.log(req, 'end', { error, device, body, event, updatedMessage }))
     //  Flush the log and wait for it to be completed.
-    .then(() => sgcloud.flushLog({}).catch((error) => { console.error(error.message, error.stack); return error; }))
-    .catch((error) => { console.error(error.message, error.stack); return error; });
+    .then(() => sgcloud.flushLog({}))
+    .catch(error => error);
 };
