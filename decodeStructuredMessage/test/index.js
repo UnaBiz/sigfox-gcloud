@@ -1,7 +1,6 @@
 //  Unit Test for decodeStructuredMessage
 /* global describe:true, it:true, beforeEach:true */
-/* eslint-disable import/no-extraneous-dependencies, no-console, no-unused-vars, one-var,
- no-underscore-dangle */
+/* eslint-disable max-len, import/newline-after-import,import/no-extraneous-dependencies,no-unused-vars,no-debugger */
 const chai = require('chai');
 const chaiAsPromised = require('chai-as-promised');
 const should = chai.should();
@@ -12,6 +11,7 @@ const moduleTested = require('../index');  //  Module to be tested, i.e. the par
 const structuredMessage = require('../structuredMessage');  //  Other modules to be tested.
 const moduleName = 'decodeStructuredMessage';
 let req = {};
+let testRootSpanPromise = null;
 
 //  Test data
 /* eslint-disable quotes, max-len */
@@ -58,25 +58,9 @@ const testMessage = (timestamp, data) => ({
   body: testBody(timestamp, data),
   type: moduleName,
 });
-/*
-const testEvent = {
-  eventType: "providers/cloud.pubsub/eventTypes/topic.publish",
-  resource: `projects/myproject/topics/sigfox.types.${moduleName}`,
-  timestamp: "2017-05-07T14:30:53.014Z",
-  data: {
-    attributes: {
-    },
-    type: "type.googleapis.com/google.pubsub.v1.PubsubMessage",
-    data: "eyJkZXZpY2UiOiIxQzhBN0UiLCJ0eXBlIjoiZGVjb2RlU3RydWN0dXJlZE1lc3NhZ2UiLCJib2R5Ijp7InV1aWQiOiJhYjBkNDBiZC1kYmM1LTQwNzYtYjY4NC0zZjYxMGQ5NmU2MjEiLCJkYXRldGltZSI6IjIwMTctMDUtMDcgMTQ6MzA6NTEiLCJjYWxsYmFja1RpbWVzdGFtcCI6MTQ5NDE2NzQ1MTI0MCwiZGV2aWNlIjoiMUM4QTdFIiwiZGF0YSI6IjkyMGUwNjI3MjczMTc0MWRiMDUxZTYwMCIsImR1cGxpY2F0ZSI6ZmFsc2UsInNuciI6MTguODYsInN0YXRpb24iOiIwMDAwIiwiYXZnU25yIjoxNS41NCwibGF0IjoxLCJsbmciOjEwNCwicnNzaSI6LTEyMywic2VxTnVtYmVyIjoxNDkyLCJhY2siOmZhbHNlLCJsb25nUG9sbGluZyI6ZmFsc2UsInRpbWVzdGFtcCI6IjE0NzY5ODA0MjYwMDAiLCJiYXNlU3RhdGlvblRpbWUiOjE0NzY5ODA0MjYsInNlcU51bWJlckNoZWNrIjpudWxsfSwicXVlcnkiOnsidHlwZSI6ImFsdGl0dWRlIn0sImhpc3RvcnkiOlt7InRpbWVzdGFtcCI6MTQ5NDE2NzQ1MTI0MCwiZW5kIjoxNDk0MTY3NDUxMjQyLCJkdXJhdGlvbiI6MCwibGF0ZW5jeSI6bnVsbCwic291cmNlIjpudWxsLCJmdW5jdGlvbiI6InNpZ2ZveENhbGxiYWNrIn0seyJ0aW1lc3RhbXAiOjE0OTQxNjc0NTI0NTQsImVuZCI6MTQ5NDE2NzQ1MjgzMywiZHVyYXRpb24iOjAuMywibGF0ZW5jeSI6MS4yLCJzb3VyY2UiOiJwcm9qZWN0cy91bmF0dW1ibGVyL3RvcGljcy9zaWdmb3guZGV2aWNlcy5hbGwiLCJmdW5jdGlvbiI6InJvdXRlTWVzc2FnZSJ9XSwicm91dGUiOlsibG9nVG9Hb29nbGVTaGVldHMiXX0=",
-  },
-  eventId: "121025758478243",
-};
-*/
-/* eslint-enable quotes, max-len */
 
 function startDebug() {
   //  Stub for setting breakpoints on exception.
-  if (req.zzz) req.zzz += 1;  //  Will never happen.
 }
 
 function getTestMessage(type) {
@@ -93,6 +77,19 @@ describe('decodeStructuredMessage', () => {
     //  Erase the request object before every test.
     startDebug();
     req = { unittest: true };
+    if (testRootSpanPromise) req.rootSpanPromise = testRootSpanPromise;
+  });
+
+  it('should create root span', () => {
+    //  Test whether we can create a root span.
+    const msg = getTestMessage('number');
+    const body = msg.body;
+    req.body = body;
+    common.log(req, 'unittest', { testDevice, body, msg });
+    const result = common.startRootSpan(req);
+    if (!result) throw new Error('rootSpan missing');
+    testRootSpanPromise = req.rootSpanPromise;
+    if (!testRootSpanPromise) throw new Error('rootSpanPromise missing');
   });
 
   it('should publish message', () => {
@@ -100,6 +97,7 @@ describe('decodeStructuredMessage', () => {
     //  Note: Queue must exist.
     const msg = getTestMessage('number');
     const body = msg.body;
+    req.body = body;
     common.log(req, 'unittest', { testDevice, body, msg });
     const promise = common.publishMessage(req, msg, testDevice, 'unittest')
       .then((result) => {
@@ -121,6 +119,7 @@ describe('decodeStructuredMessage', () => {
     //  Test whether we can decode a structured message containing numbers.
     const msg = getTestMessage('number');
     const body = msg.body;
+    req.body = body;
     common.log(req, 'unittest', { testDevice, body, msg });
     const promise = moduleTested.task(req, testDevice, body, msg)
       .then((result) => {
@@ -150,5 +149,28 @@ describe('decodeStructuredMessage', () => {
     result.should.have.property('d1').equals('zoe');
     result.should.have.property('d2').equals('ell');
     result.should.have.property('d3').equals('joy');
+  });
+
+  it('should end root span', () => {
+    //  Test whether we can end a root span.
+    const msg = getTestMessage('number');
+    const body = msg.body;
+    req.body = body;
+    common.log(req, 'unittest', { testDevice, body, msg });
+    const promise = common.endRootSpan(req)
+      .then((result) => {
+        common.log(req, 'unittest', { result });
+        if (!req.rootSpanPromise) testRootSpanPromise = null;
+        return result;
+      })
+      .catch((error) => {
+        common.error(req, 'unittest', { error });
+        debugger;
+        throw error;
+      })
+    ;
+    return Promise.all([
+      promise,
+    ]);
   });
 });

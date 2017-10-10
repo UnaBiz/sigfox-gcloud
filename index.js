@@ -64,41 +64,38 @@ function removeNulls(obj0, level) {
 
 function getSpanName(body) {
   //  Return a span name based on the device ID, sequence number and basestationTime:
-  //    device|seqNumber|baseStationTime
-  //  Will be used to track the request end to end.
+  //    device_seqNumber_baseStationTime
+  //  Will be used to track the request end to end.  Must not include any url-unsafe chars.
   if (!body) return 'missing_body';
   const device = body.device ? body.device.toUpperCase() : 'missing_device';
   const seqNumber = body.seqNumber || 'missing_seqNumber';
   const baseStationTime = body.time || body.baseStationTime || 'missing_time';
-  return [device, seqNumber, baseStationTime].join('|');
+  return [device, seqNumber, baseStationTime].join('_');
 }
 
 function startRootSpan(req) {
   //  Start a root-level span to trace the request across Cloud Functions.
   const rootSpanName = getSpanName(req.body);
   const rootSpan = tracing.startRootSpan(rootSpanName);
-  Object.assign(req, { rootSpan });  //  Cache in the request object.
+  Object.assign(req, { rootSpanPromise: Promise.resolve(rootSpan) });  //  Cache in the request object.
   return rootSpan;
 }
 
 function getRootSpan(req) {
   //  Return the current root span for tracing the request across Cloud Functions.
   //  Returns a promise.
-  if (req.rootSpan) return Promise.resolve(req.rootSpan);
+  if (req.rootSpanPromise) return req.rootSpanPromise;
   const rootSpanName = getSpanName(req.body);
-  return new Promise((accept, reject) =>
+  //  Cache in the request object.
+  //  eslint-disable-next-line no-param-reassign
+  req.rootSpanPromise = new Promise((accept, reject) =>
       tracing.getTrace(rootSpanName, (err, res) =>
-        (err ? reject(err) : accept(res)))
-    )
-    .then((rootSpan) => {
-      if (!rootSpan) return null;
-      Object.assign(req, { rootSpan });  //  Cache in the request object.
-      return rootSpan;
-    })
+        (err ? reject(err) : accept(res))))
     .catch((error) => {
       console.error(error.message, error.stack);
       return null;  //  Suppress the error.
     });
+  return req.rootSpanPromise;
 }
 
 function endRootSpan(req) {
@@ -107,7 +104,7 @@ function endRootSpan(req) {
   return getRootSpan(req)
     .then((rootSpan) => {
       if (rootSpan) rootSpan.end();  // eslint-disable-next-line no-param-reassign
-      if (req.rootSpan) delete req.rootSpan;
+      if (req.rootSpanPromise) delete req.rootSpanPromise;  //  Remove cache.
       return 'OK';
     })
     .catch((error) => {
@@ -116,8 +113,21 @@ function endRootSpan(req) {
     });
 }
 
+function createChildSpan(req, name, labels) {
+  //  Create a child span to trace a task in this module.  Returns a promise.
+  return getRootSpan(req)
+    .then((rootSpan) => {
+      if (!rootSpan) return null;
+      return rootSpan.startSpan(name, labels);
+    })
+    .catch((error) => {
+      console.error(error.message, error.stack);
+      return null;  //  Suppress the error.
+    });
+}
+
 function createTraceID(now0) {
-  //  Return a trace ID array with local time MMSS-uuid to sort in Firebase.
+  //  Return a trace ID array with local time MMSS-uuid for display later.
   const now = now0 || Date.now();
   const s = new Date(now + (8 * 60 * 60 * 1000 * 100)).toISOString();
   return [`${s.substr(14, 2)}${s.substr(17, 2)}-${uuidv4()}`];
@@ -128,7 +138,7 @@ function publishJSON(req, topic, obj) {
   //  Returns a promise.
   if (!topic) return Promise.resolve(null);
   return topic.publisher().publish(new Buffer(stringify(obj)))
-    .catch(error => { // eslint-disable-next-line no-use-before-define
+    .catch((error) => { // eslint-disable-next-line no-use-before-define
       log(req, 'publishJSON', { error, topic, obj });
       throw error;
     });
@@ -185,10 +195,11 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
 } /* eslint-enable global-require, no-param-reassign */
 
 //  Write log records in batches by 5 records normally, max 10 records when flushing.
-const batchSize = (flush) => (flush ? 5 : 10);
+const batchSize = flush => (flush ? 5 : 10);
 const logTasks = [];  //  List of logging tasks to be completed.  They return a log entry.
 let taskCount = 0;  //  Number of logging tasks completed so far.
-const operationCache = {};  //  Remember all past operation IDs here, so we know whether it's a new one.
+//  Maps operationid to the promise for the child span, for instrumentation.
+const allSpanPromises = {};
 
 function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
@@ -211,8 +222,7 @@ function writeLog(req, loggingLog0, flush) {
     if (!task) break;
     batch.push(
       task(loggingLog)
-        .catch((err) => { console.error(err.message, err.stack); return null; })
-    );
+        .catch((err) => { console.error(err.message, err.stack); return null; }));
     taskCount += 1;
   }
   console.log(`______ ${taskCount} / ${batch.length} / ${logTasks.length}`);
@@ -237,11 +247,6 @@ function writeLog(req, loggingLog0, flush) {
     .catch((err) => { console.error(err.message, err.stack); return err; });
 }
 
-//  Wait for the task to finish, then schedule the next task.
-//  return task(loggingLog)
-/* return loggingLog.write(entries)  //  Suppress error.
-.catch((err2) => { console.error(err2.message, err2.stack); return null; }); */
-
 function scheduleLog(req, loggingLog0) {
   //  Schedule for the log to be written at every tick, if there are tasks.
   if (logTasks.length === 0) return;
@@ -251,7 +256,8 @@ function scheduleLog(req, loggingLog0) {
       writeLog(req, loggingLog);
     } catch (err2) {
       console.error(err2.message, err2.stack);
-    } });
+    }
+  });
 }
 
 function flushLog(req) {
@@ -260,7 +266,7 @@ function flushLog(req) {
     .catch((err) => { console.error(err.message, err.stack); return err; });
 }
 
-function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disable no-param-reassign */
+function deferLog(req, action, para0, record, now, operation, loggingLog) { /* eslint-disable no-param-reassign */
   //  Write the action and parameters to Google Cloud Logging for normal log,
   //  or to Google Cloud Error Reporting if para contains error.
   //  loggingLog contains the Google Cloud logger.  Returns a promise.
@@ -301,20 +307,6 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
           else console.log(out);
         }
         const level = para.err ? 'ERROR' : 'DEBUG';
-        const operationid = `${action}/${req.traceid}`;
-        const operation = {
-          //  Optional. An arbitrary operation identifier. Log entries with the same identifier are assumed to be part of the same operation.
-          id: operationid,
-          //  Optional. An arbitrary producer identifier. The combination of id and producer must be globally unique. Examples for producer: "MyDivision.MyBigCompany.com", "github.com/MyProject/MyApplication".
-          producer: 'unabiz.com',
-          //  Optional. Set this to True if this is the first log entry in the operation.
-          //  eslint-disable-next-line no-unneeded-ternary
-          first: operationCache[operationid] ? false : true,
-          //  Optional. Set this to True if this is the last log entry in the operation.
-          //  eslint-disable-next-line no-unneeded-ternary
-          last: (para.err || para.result) ? true : false,
-        };
-        operationCache[operationid] = now;
         const timestamp = new Date(now);
         const metadata = {
           timestamp,
@@ -330,7 +322,7 @@ function deferLog(req, action, para0, record, now, loggingLog) { /* eslint-disab
         //  eslint-disable-next-line no-underscore-dangle
         let key = `_${(para && para.result) ? '<<' : '__'}_[ ${para.device || ' ? ? ? '} ]____${action || '    '}____`;
         const keyLength = 40;
-        if (key.length < keyLength) key = key + '_'.repeat(keyLength - key.length);
+        if (key.length < keyLength) key += '_'.repeat(keyLength - key.length);
         event[key] = para;
         if (!isCloudFunc) {
           const out = [action, require('util').inspect(para, { colors: true })].join(' | ');
@@ -383,9 +375,30 @@ function log(req0, action, para0) {
       if (req.userid) para.userid = req.userid;
       if (req.deviceid) para.deviceid = req.deviceid;
     }
+    //  Create the log operation.
+    const operationid = `${action}/${req.traceid ? req.traceid[0] : createTraceID(now)}`;
+    const operation = {
+      //  Optional. An arbitrary operation identifier. Log entries with the same identifier are assumed to be part of the same operation.
+      id: operationid,
+      //  Optional. An arbitrary producer identifier. The combination of id and producer must be globally unique. Examples for producer: "MyDivision.MyBigCompany.com", "github.com/MyProject/MyApplication".
+      producer: 'unabiz.com',
+      //  Optional. Set this to True if this is the first log entry in the operation.
+      //  eslint-disable-next-line no-unneeded-ternary
+      first: allSpanPromises[operationid] ? false : true,
+      //  Optional. Set this to True if this is the last log entry in the operation.
+      //  eslint-disable-next-line no-unneeded-ternary
+      last: (para.err || para.result) ? true : false,
+    };
+    //  Instrument the function by creating a child span.
+    if (operation.first) allSpanPromises[operationid] = createChildSpan(req, action);
+    else if (operation.last && allSpanPromises[operationid]) {
+      const promise = allSpanPromises[operationid];
+      delete allSpanPromises[operationid];
+      promise.then(span => span.end()).catch(err2 => console.error(err2.message, err2.stack));
+    }
     //  Write the log in the next tick, so we don't block.
-    logTasks.push((loggingLog) => (
-      deferLog(req, action, para, record, now, loggingLog)
+    logTasks.push(loggingLog => (
+      deferLog(req, action, para, record, now, operation, loggingLog)
         .catch((err2) => {
           console.error(err2.message, err2.stack);
           return err2;
@@ -441,11 +454,11 @@ function publishMessage(req, oldMessage, device, type) {
   const pid = credentials.projectId || '';
   const destination = topicName;
   return publishJSON(req, topic, message)
-    .then(result => {
+    .then((result) => {
       log(req, 'publishMessage', { result, destination, topicName, message, device: oldMessage.device, type, projectId: pid });
       return result;
     })
-    .catch(error => {
+    .catch((error) => {
       log(req, 'publishMessage', { error, destination, topicName, message, device: oldMessage.device, type, projectId: pid });
       return error;  //  Suppress the error.
     });
@@ -596,4 +609,6 @@ module.exports = {
   //  If required, remap the projectId and topicName to deliver to another queue.
   transformRoute: (req, type, device, credentials, topicName) =>
     ({ credentials: Object.assign({}, credentials), topicName }),
+  //  For unit test only.
+  endRootSpan,
 };
