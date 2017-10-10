@@ -139,6 +139,7 @@ function createChildSpan(req, name, labels) {
 //  Write log records in batches by 5 records normally, max 10 records when flushing.
 const batchSize = flush => (flush ? 5 : 10);
 const logTasks = [];  //  List of logging tasks to be completed.  They return a log entry.
+// eslint-disable-next-line no-unused-vars
 let taskCount = 0;  //  Number of logging tasks completed so far.
 //  Maps operationid to the promise for the child span, for instrumentation.
 const allSpanPromises = {};
@@ -235,7 +236,7 @@ function writeLog(req, loggingLog0, flush) {
         .catch((err) => { console.error(err.message, err.stack); return null; }));
     taskCount += 1;
   }
-  console.log(`______ ${taskCount} / ${batch.length} / ${logTasks.length}`);
+  // console.log(`______ ${taskCount} / ${batch.length} / ${logTasks.length}`);
   //  Wait for the batch to finish.
   return Promise.all(batch)
     .then((res) => {
