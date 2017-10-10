@@ -262,12 +262,7 @@ function scheduleLog(req, loggingLog0) {
 
 function flushLog(req) {
   //  We are about to quit.  Flush the Google Tracing log and write all log items.
-  return getRootSpan(req)
-    .then((span) => {
-      if (!span) return null;
-      span.end();
-      return null;
-    })
+  return endRootSpan(req)
     .then(() => writeLog(req, null, true))
     .catch((err) => { console.error(err.message, err.stack); return err; });
 }
@@ -403,7 +398,7 @@ function log(req0, action, para0) {
       last: (para.err || para.result) ? true : false,
     };
     //  Instrument the function by creating a child span.
-    if (operation.first) allSpanPromises[operationid] = null; //// createChildSpan(req, action);
+    if (operation.first) allSpanPromises[operationid] = createChildSpan(req, action);
     else if (operation.last && allSpanPromises[operationid]) {
       const promise = allSpanPromises[operationid];
       delete allSpanPromises[operationid];
