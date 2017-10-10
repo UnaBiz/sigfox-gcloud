@@ -276,9 +276,8 @@ function scheduleLog(req, loggingLog0) {
 }
 
 function flushLog(req) {
-  //  We are about to quit.  Flush the Google Tracing log and write all log items.
-  return endRootSpan(req)
-    .then(() => writeLog(req, null, true))
+  //  We are about to quit.  Write all log items.
+  return writeLog(req, null, true)
     .catch((err) => { console.error(err.message, err.stack); return err; });
 }
 
