@@ -14,15 +14,21 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
 
 Other `sigfox-cloud` modules available:
 
-1. [`sigfox-gcloud-ubidots`:](https://github.com/UnaBiz/sigfox-gcloud-ubidots)
+1. [`sigfox-gcloud-ubidots`:](https://www.npmjs.com/package/sigfox-gcloud-ubidots)
     Adapter for integrating Sigfox devices with the easy and friendly **Ubidots IoT platform**
 
 
 [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg)
 
+# Releases
+
+- **Version 1.0.0** (11 Oct 2017): Supports **Google Cloud Trace** for tracing the Sigfox Callback processing time
+  across Cloud Functions.  Supports **Google Cloud Debug** for capturing Node.js memory snapshots.
+  Supports **Ubidots map visualisation** of Sigfox Geolocation and other geolocated sensor data points.
+
 # Getting Started
 
-Download this source folder to your computer.  For development
+Download the `sigfox-cloud` source folder to your computer.  For development
    we support Linux, MacOS and [Ubuntu on Windows 10](https://msdn.microsoft.com/en-us/commandline/wsl/about).
 
 ```bash
@@ -218,7 +224,7 @@ instead of the Windows convention (carriage return + linefeed: `\r \n`).
         **`URL`**
     
     -  **Send duplicate**: <br>
-        **Checked (Yes)**
+        **Unchecked (No)**
     
     -  **Custom payload config**: <br>
         **(Blank)**
@@ -400,15 +406,74 @@ If we plan to use the downlink capability, there are two additional things to co
 
     https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
 
-### Testing the Sigfox server
+### Viewing `sigfox-gcloud` server logs
+
+You may view the logs through the
+[Google Cloud Logging Console](https://console.cloud.google.com/logs/viewer?resource=cloud_function&minLogLevel=0&expandAll=false)  
+Select **"Cloud Function"** as the **"Resource"**
+        
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png)
+    
+From the screen above you can see the logs generated as each Sigfox message is processed in stages by `sigfox-gcloud`:
+
+-   **Sigfox Device IDs** are shown in square brackets e.g. `[ 2C30EB ]`
+
+-   **Completed Steps** are denoted by `_<<_`
+
+-   **`sigfoxCallback`** is the Google Cloud Function that listens for incoming HTTPS messages delivered by Sigfox
+
+-   **`routeMessage`** passes the Sigfox message to various Google Cloud Functions to decode and process the message
+
+-   **`decodeStructuredMessage`** decodes a compressed Sigfox message that contains multiple field names and field values
+
+-   **`sendToUbidots`** is a Google Cloud Function that sends the decoded sensor data to Ubidots via the Ubidots API.
+    See [`sigfox-gcloud-ubidots`](https://www.npmjs.com/package/sigfox-gcloud-ubidots)
+
+### Tracing `sigfox-gcloud` server performance
+
+The
+[Google Cloud Trace Console](https://console.cloud.google.com/traces/traces)
+shows you the time taken by each step of the Sigfox message processing pipeline, tracing the message through every Google Cloud Function.
+
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace.png)
+
+Each message delivered by Sigfox appears as a separate trace timeline.  Messages are shown like `2C30EB seq:1913`
+where `2C30EB` is the **Sigfox Device ID** and `1913` is the **Sigfox Message Sequence Number (seqNumber)**
+
+The Google Stackdriver Trace API needs to be [enabled manually](https://console.cloud.google.com/apis/library/cloudtrace.googleapis.com/?q=trace&project=iteunabiz&organizationId=300017972478).
+
+Custom reports may be created in Google Cloud Trace Control to benchmark the performance of each processing step over time.
+
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-report-detail.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-report-detail.png)
+
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-overview.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-overview.png)
+
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-report.png" width="400"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-report.png)
+
+### Understanding and Troubleshooting the `sigfox-gcloud` server
+
+To understand each processing step in the `sigfox-gcloud` server, you may use the
+[Google Cloud Debug Console](https://console.cloud.google.com/debug)
+to set breakpoints and capture in-memory variable values for each Google Cloud Function, without stopping or reconfiguring the server.
+
+In the example below, we have set a breakpoint in the `sigfoxCallback` Google Cloud Function.  The captured in-memory
+values are displayed at right - you can see the **Sigfox message** that was received by the callback.
+The **Callback Stack** appears at the lower right.
+
+Google Cloud Debug is also useful for troubleshooting your custom message processing code without having to insert the
+debugging code yourself.
+
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-debug.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-debug.png)
+        
+### Testing the `sigfox-gcloud` server
 
 1.  Send some Sigfox messages from the Sigfox devices. Monitor the progress
     of the processing through the 
     [Google Cloud Logging Console.](https://console.cloud.google.com/logs/viewer?resource=cloud_function&minLogLevel=0&expandAll=false)  
     Select **"Cloud Function"** as the **"Resource"**
-        
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log.png)
-        
+
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png)
+                
 1.  Processing errors will be reported to the 
     [Google Cloud Error Reporting Console.](https://console.cloud.google.com/errors?time=P1D&filter&order=COUNT_DESC)
             
@@ -715,3 +780,25 @@ If we plan to use the downlink capability, there are two additional things to co
     route cache is refreshed.
 
 1. To test, send a Sigfox message from your Sigfox device.
+
+# `sigfox-gcloud-ubidots` adapter for Ubidots
+
+The [`sigfox-gcloud-ubidots`](https://www.npmjs.com/package/sigfox-gcloud-ubidots) adapter is a Google Cloud Function 
+(developed with the `sigfox-gcloud` framework) that integrates with **Ubidots** to provide a comprehensive IoT 
+platform for Sigfox.
+
+With Ubidots and `sigfox-gcloud-ubidots`, you may easily visualise sensor data from your Sigfox devices and monitor
+for alerts. To perform custom processing of your Sigfox device messages before passing to Ubidots, 
+you may write a Google Cloud Function with the `sigfox-gcloud` framework.  
+
+`sigfox-gcloud-ubidots` also lets you to visualise in real-time the **Sigfox Geolocation** data from your Sigfox devices, 
+or other kinds of GPS tracking data.  For details, check out:
+
+[`https://www.npmjs.com/package/sigfox-gcloud-ubidots`](https://www.npmjs.com/package/sigfox-gcloud-ubidots)
+
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-dashboard.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-dashboard.png)
+
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device-list.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device-list.png)
+
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device.png)
+
