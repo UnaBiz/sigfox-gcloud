@@ -37,7 +37,7 @@ const testBody = (timestamp, data) => ({
   station: "0000",
   avgSnr: 15.54,
   timestamp: `${timestamp}`,
-  seqNumber: 1494,
+  seqNumber: 1495,
   lat: 1,
   callbackTimestamp: timestamp,
   lng: 104,
@@ -187,9 +187,6 @@ describe('decodeStructuredMessage', () => {
     const body = msg.body;
     req.body = body;
     const promise = common.sleep(req, 'OK', 1000)
-      .then((result) => {
-        return result;
-      })
       .catch((error) => {
         common.error(req, 'unittest', { error });
         debugger;
@@ -306,9 +303,6 @@ describe('decodeStructuredMessage', () => {
     const body = msg.body;
     req.body = body;
     const promise = common.sleep(req, 'OK', 1000)
-      .then((result) => {
-        return result;
-      })
       .catch((error) => {
         common.error(req, 'unittest', { error });
         debugger;

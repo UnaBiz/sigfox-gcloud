@@ -117,6 +117,8 @@ function getRootSpan(req, rootTraceId0) {
   //  based on the rootTraceId passed by the previous Cloud Function.  Return the
   //  cached copy from req if available. Returns 2 promises: { rootTracePromise, rootSpanPromise }
   if (!req.rootTracePromise || !req.rootSpanPromise) {
+    //  We create the trace locally instead of calling tracing.getTrace because the trace
+    //  may not be written to Google Cloud yet as we call another Cloud Function.
     const rootTraceId = rootTraceId0 || req.rootTraceId;
     if (!rootTraceId) {
       //  Missing trace ID.
@@ -127,6 +129,10 @@ function getRootSpan(req, rootTraceId0) {
       };
     } // eslint-disable-next-line new-cap
     const rootTrace = new tracingtrace(tracing, rootTraceId);
+    //  Randomly assign the starting span ID.  Must not clash with previously assigned span ID
+    //  for this trace ID.
+    //  eslint-disable-next-line no-underscore-dangle
+    rootTrace._spanIdInc = parseInt(Math.random() * 1000000, 10);
     //  Create a span from the trace.  Will be cached in request.
     startRootSpan(req, rootTrace);
   }
