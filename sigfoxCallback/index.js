@@ -162,6 +162,7 @@ exports.main = (req0, res) => {
   //  Start a root-level span to trace the request across Cloud Functions.
   const rootTrace = sgcloud.startRootSpan(req).rootTrace;
   const rootTraceId = rootTrace.traceId;  //  Pass to other Cloud Functions.
+  req.rootTraceId = rootTraceId;
 
   const event = null;
   const type = (req.query && req.query.type) || null;
