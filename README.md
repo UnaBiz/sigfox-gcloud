@@ -86,7 +86,7 @@ instead of the Windows convention (carriage return + linefeed: `\r \n`).
 1. Update and install `gcloud` components:
 
     ```bash
-    gcloud components update &&
+    gcloud components update
     gcloud components install beta
     ```
 
