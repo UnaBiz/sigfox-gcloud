@@ -28,8 +28,8 @@ Other `sigfox-cloud` modules available:
 
 # Getting Started
 
-Download the `sigfox-cloud` source folder to your computer.  For development
-   we support Linux, MacOS and [Ubuntu on Windows 10](https://msdn.microsoft.com/en-us/commandline/wsl/about).
+For development we support Linux, MacOS and [Ubuntu on Windows 10](https://msdn.microsoft.com/en-us/commandline/wsl/about).
+Open a command prompt and enter these commands to download the `sigfox-cloud` source folder to your computer.  
 
 ```bash
 git clone https://github.com/UnaBiz/sigfox-gcloud.git
@@ -342,15 +342,15 @@ If we plan to use the downlink capability, there are two additional things to co
 
     [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/metadata-route.png" width="640"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/metadata-route.png)
 
-1.    A route looks like
+1.  A route looks like
 
     ```
     decodeStructuredMessage, logToGoogleSheets, ...
     ```
     
     in which `decodeStructuredMessage` and `logToGoogleSheets` are the Google Cloud Functions to be called sequentially.
-    These Cloud Functions will subscribe to the following Google PubSub queues to listen for Sigfox messages:
-    
+    These Cloud Functions will subscribe to the following Google PubSub queues to listen for Sigfox messages:    
+
     ```
     sigfox.types.decodeStructuredMessage
     sigfox.types.logToGoogleSheets
