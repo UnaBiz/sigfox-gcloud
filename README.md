@@ -412,7 +412,7 @@ You may view the logs through the
 [Google Cloud Logging Console](https://console.cloud.google.com/logs/viewer?resource=cloud_function&minLogLevel=0&expandAll=false)  
 Select **"Cloud Function"** as the **"Resource"**
         
-[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png)
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.jpg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png)
     
 From the screen above you can see the logs generated as each Sigfox message is processed in stages by `sigfox-gcloud`:
 
@@ -435,7 +435,7 @@ The
 [Google Cloud Trace Console](https://console.cloud.google.com/traces/traces)
 shows you the time taken by each step of the Sigfox message processing pipeline, tracing the message through every Google Cloud Function.
 
-[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace.png)
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace.jpg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace.png)
 
 Each message delivered by Sigfox appears as a separate trace timeline.  Messages are shown like `2C30EB seq:1913`
 where `2C30EB` is the **Sigfox Device ID** and `1913` is the **Sigfox Message Sequence Number (seqNumber)**
@@ -444,11 +444,11 @@ The Google Stackdriver Trace API needs to be [enabled manually](https://console.
 
 Custom reports may be created in Google Cloud Trace Control to benchmark the performance of each processing step over time.
 
-[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-report-detail.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-report-detail.png)
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-report-detail.jpg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-report-detail.png)
 
-[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-overview.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-overview.png)
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-overview.jpg" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-overview.png)
 
-[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-report.png" width="400"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-report.png)
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-report.jpg" width="400"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-report.png)
 
 ### Understanding and Troubleshooting the `sigfox-gcloud` server
 
@@ -463,7 +463,7 @@ The **Callback Stack** appears at the lower right.
 Google Cloud Debug is also useful for troubleshooting your custom message processing code without having to insert the
 debugging code yourself.
 
-[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-debug.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-debug.png)
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-debug.jpg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-debug.png)
         
 ### Testing the `sigfox-gcloud` server
 
@@ -472,7 +472,7 @@ debugging code yourself.
     [Google Cloud Logging Console.](https://console.cloud.google.com/logs/viewer?resource=cloud_function&minLogLevel=0&expandAll=false)  
     Select **"Cloud Function"** as the **"Resource"**
 
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.jpg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-log2.png)
                 
 1.  Processing errors will be reported to the 
     [Google Cloud Error Reporting Console.](https://console.cloud.google.com/errors?time=P1D&filter&order=COUNT_DESC)
@@ -796,9 +796,9 @@ or other kinds of GPS tracking data.  For details, check out:
 
 [`https://www.npmjs.com/package/sigfox-gcloud-ubidots`](https://www.npmjs.com/package/sigfox-gcloud-ubidots)
 
-[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-dashboard.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-dashboard.png)
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-dashboard.jpg" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-dashboard.png)
 
-[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device-list.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device-list.png)
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device-list.jpg" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device-list.png)
 
-[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device.png)
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device.jpg" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device.png)
 
