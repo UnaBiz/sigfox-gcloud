@@ -51,7 +51,7 @@ function getResponse(req, device0, body /* , msg */) {
   return Promise.resolve(response);
 }
 
-function saveMessage(req, device, type, body) {
+function saveMessage(req, device, type, body, rootTraceId) {
   //  Save the message to Google PubSub in 3 message queues:
   //  (1) sigfox.devices.all (the queue for all devices)
   //  (2) sigfox.devices.<deviceID> (the device specific queue)
@@ -60,7 +60,7 @@ function saveMessage(req, device, type, body) {
   //  to process this message e.g. routeMessage.
   //  Where does type come from?  It's specified in the callback URL
   //  e.g. https://myproject.appspot.com?type=gps
-  sgcloud.log(req, 'saveMessage', { device, type, body });
+  sgcloud.log(req, 'saveMessage', { device, type, body, rootTraceId });
   const queues = [
     { device },  //  sigfox.devices.<deviceID> (the device specific queue)
     { device: 'all' },  //  sigfox.devices.all (the queue for all devices)
@@ -68,7 +68,7 @@ function saveMessage(req, device, type, body) {
   if (type) queues.push({ type });  //  sigfox.types.<deviceType>
   const query = req.query;
   //  Compose the message and record the history.
-  const message0 = { device, type, body, query };
+  const message0 = { device, type, body, query, rootTraceId };
   const message = sgcloud.updateMessageHistory(req, message0, device);
   //  Get a list of promises, one for each publish operation to each queue.
   const promises = [];
@@ -76,7 +76,7 @@ function saveMessage(req, device, type, body) {
     //  Send message to each queue, either the device ID or message type queue.
     const promise = sgcloud.publishMessage(req, message, queue.device, queue.type)
       .catch((error) => {
-        sgcloud.log(req, 'saveMessage', { error, device, type, body });
+        sgcloud.log(req, 'saveMessage', { error, device, type, body, rootTraceId });
         return error;  //  Suppress the error so other sends can proceed.
       });
     promises.push(promise);
@@ -84,6 +84,7 @@ function saveMessage(req, device, type, body) {
   //  Wait for the messages to be published to the queues.
   return Promise.all(promises)
   //  Return the message with dispatch flag set so we don't resend.
+    .then(() => sgcloud.log(req, 'saveMessage', { result: message, device, type, body, rootTraceId }))
     .then(() => Object.assign({}, message, { isDispatched: true }))
     .catch((error) => { throw error; });
 }
@@ -138,11 +139,12 @@ function task(req, device, body0, msg) {
   //  Then send the HTTP response back to Sigfox cloud.  If there is downlink data, wait for the response.
   const res = req.res;
   const type = msg.type;
+  const rootTraceId = msg.rootTraceId;
   //  Convert the text fields into number and boolean values.
   const body = parseSIGFOXMessage(req, body0);
   let result = null;
   //  Send the Sigfox message to the 3 queues.
-  return saveMessage(req, device, type, body)
+  return saveMessage(req, device, type, body, rootTraceId)
     .then((newMessage) => { result = newMessage; return newMessage; })
     //  Wait for the downlink data if any.
     .then(() => getResponse(req, device, body0, msg))
