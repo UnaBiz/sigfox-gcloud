@@ -450,7 +450,7 @@ Custom reports may be created in Google Cloud Trace Control to benchmark the per
 
 [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-report.jpg" width="400"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/gcloud-trace-report.png)
 
-### Understanding and Troubleshooting the `sigfox-gcloud` server
+### Understanding and troubleshooting the `sigfox-gcloud` server
 
 To understand each processing step in the `sigfox-gcloud` server, you may use the
 [Google Cloud Debug Console](https://console.cloud.google.com/debug)
