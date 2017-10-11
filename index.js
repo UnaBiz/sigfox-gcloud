@@ -28,6 +28,7 @@ const path = require('path');
 const uuidv4 = require('uuid/v4');
 const stringify = require('json-stringify-safe');
 const tracing = require('gcloud-trace')();
+const tracingtrace = require('gcloud-trace/src/trace');
 
 //  Assume that the Google Service Account credentials are present in this file.
 //  This is needed for calling Google Cloud PubSub, Logging, Trace, Debug APIs
@@ -88,18 +89,19 @@ function getSpanName(body) {
   if (!body) return 'missing_body';
   const device = body.device ? body.device.toUpperCase() : 'missing_device';
   const seqNumber = body.seqNumber || 'missing_seqNumber';
-  const baseStationTime = body.time || body.baseStationTime || 'missing_time';
-  return [device, seqNumber, baseStationTime].join('_');
+  return [device, seqNumber].join(' seq:');
 }
 
-function startRootSpan(req) {
+function startRootSpan(req, rootTrace0) {
   //  Start a root-level trace and span to trace the request across Cloud Functions.
-  //  Returns { rootTrace, rootSpan } objects.
-  const rootSpanName = getSpanName(req.body);
+  //  Returns { rootTrace, rootSpan } objects.  rootTrace0 should be null, unless
+  //  passed by getRootSpan to init the root span.  Derived from
+  //  https://github.com/zbjornson/gcloud-trace/blob/master/src/index.js
   //  Create the root trace.
   const labels = {};
-  const rootTrace = tracing.startTrace();
+  const rootTrace = rootTrace0 || tracing.startTrace();
   //  Start the span.
+  const rootSpanName = getSpanName(req.body);
   const rootSpan = rootTrace.startSpan(rootSpanName, labels);
   rootSpan.end = rootTrace.end.bind(rootTrace);
   //  Cache the root trace and span in the request object.
@@ -114,35 +116,20 @@ function getRootSpan(req, rootTraceId0) {
   //  Return the current root trace and span for tracing the request across Cloud Functions,
   //  based on the rootTraceId passed by the previous Cloud Function.  Return the
   //  cached copy from req if available. Returns 2 promises: { rootTracePromise, rootSpanPromise }
-  if (req.rootTracePromise && req.rootSpanPromise) {
-    //  Return from cache.
-    return {
-      rootTracePromise: req.rootTracePromise,
-      rootSpanPromise: req.rootSpanPromise,
-    };
+  if (!req.rootTracePromise || !req.rootSpanPromise) {
+    const rootTraceId = rootTraceId0 || req.rootTraceId;
+    if (!rootTraceId) {
+      //  Missing trace ID.
+      dumpError(new Error('missing_traceid'));
+      return {
+        rootTracePromise: Promise.resolve(null),
+        rootSpanPromise: Promise.resolve(null),
+      };
+    } // eslint-disable-next-line new-cap
+    const rootTrace = new tracingtrace(tracing, rootTraceId);
+    //  Create a span from the trace.  Will be cached in request.
+    startRootSpan(req, rootTrace);
   }
-  const rootTraceId = rootTraceId0 || req.rootTraceId;
-  if (!rootTraceId) {
-    //  Missing trace ID.
-    dumpError(new Error('missing_traceid'));
-    return {
-      rootTracePromise: Promise.resolve(null),
-      rootSpanPromise: Promise.resolve(null),
-    };
-  }
-  //  Else fetch and cache the trace and span in the request object.
-  //  eslint-disable-next-line no-param-reassign
-  req.rootTracePromise = new Promise((accept, reject) =>
-      tracing.getTrace(rootTraceId, (err, res) =>
-        (err ? reject(err) : accept(res))))
-    .catch(dumpNullError);  //  eslint-disable-next-line no-param-reassign
-  req.rootSpanPromise = req.rootTracePromise
-    .then((rootTrace) => {
-      if (!rootTrace) return null;
-      return (rootTrace.spans && rootTrace.spans[0]) ?
-        rootTrace.spans[0] : null;
-    })
-    .catch(dumpNullError);
   return {
     rootTracePromise: req.rootTracePromise,
     rootSpanPromise: req.rootSpanPromise,

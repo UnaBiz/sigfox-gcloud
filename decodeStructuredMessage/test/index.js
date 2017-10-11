@@ -37,7 +37,7 @@ const testBody = (timestamp, data) => ({
   station: "0000",
   avgSnr: 15.54,
   timestamp: `${timestamp}`,
-  seqNumber: 1492,
+  seqNumber: 1494,
   lat: 1,
   callbackTimestamp: timestamp,
   lng: 104,
@@ -132,6 +132,29 @@ describe('decodeStructuredMessage', () => {
     ]);
   });
 
+  it('should publish message', () => {
+    //  Test whether we can publish a message to sigfox.devices.UNITTEST1.
+    //  Note: Queue must exist.
+    const msg = getTestMessage('number');
+    const body = msg.body;
+    req.body = body;
+    common.log(req, 'unittest', { testDevice, body, msg });
+    const promise = common.publishMessage(req, msg, testDevice, 'unittest')
+      .then((result) => {
+        common.log(req, 'unittest', { result });
+        return result;
+      })
+      .catch((error) => {
+        common.error(req, 'unittest', { error });
+        debugger;
+        throw error;
+      })
+    ;
+    return Promise.all([
+      promise,
+    ]);
+  });
+
   it('should end root span', () => {
     //  Test whether we can end a root span.
     const msg = getTestMessage('number');
@@ -158,13 +181,13 @@ describe('decodeStructuredMessage', () => {
     ]);
   });
 
-  it('should sleep', () => {
+  it('should wait for log to flush', () => {
+    //  Give some time for Google Trace log to be flushed.
     const msg = getTestMessage('number');
     const body = msg.body;
     req.body = body;
-    const promise = common.sleep(req, 'OK', 10000)
+    const promise = common.sleep(req, 'OK', 1000)
       .then((result) => {
-        common.log(req, 'unittest', { result });
         return result;
       })
       .catch((error) => {
@@ -204,29 +227,6 @@ describe('decodeStructuredMessage', () => {
         if (rootTrace.traceId !== testRootTraceId) throw new Error('rootTraceId changed');
         testRootTraceId = null;
         return 'OK';
-      })
-      .catch((error) => {
-        common.error(req, 'unittest', { error });
-        debugger;
-        throw error;
-      })
-    ;
-    return Promise.all([
-      promise,
-    ]);
-  });
-
-  it('should publish message', () => {
-    //  Test whether we can publish a message to sigfox.devices.UNITTEST1.
-    //  Note: Queue must exist.
-    const msg = getTestMessage('number');
-    const body = msg.body;
-    req.body = body;
-    common.log(req, 'unittest', { testDevice, body, msg });
-    const promise = common.publishMessage(req, msg, testDevice, 'unittest')
-      .then((result) => {
-        common.log(req, 'unittest', { result });
-        return result;
       })
       .catch((error) => {
         common.error(req, 'unittest', { error });
@@ -287,6 +287,26 @@ describe('decodeStructuredMessage', () => {
         common.log(req, 'unittest', { result });
         if (!req.rootTracePromise) testRootTracePromise = null;
         if (!req.rootSpanPromise) testRootSpanPromise = null;
+        return result;
+      })
+      .catch((error) => {
+        common.error(req, 'unittest', { error });
+        debugger;
+        throw error;
+      })
+    ;
+    return Promise.all([
+      promise,
+    ]);
+  });
+
+  it('should wait for log to flush', () => {
+    //  Give some time for Google Trace log to be flushed.
+    const msg = getTestMessage('number');
+    const body = msg.body;
+    req.body = body;
+    const promise = common.sleep(req, 'OK', 1000)
+      .then((result) => {
         return result;
       })
       .catch((error) => {
