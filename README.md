@@ -796,6 +796,8 @@ or other kinds of GPS tracking data.  For details, check out:
 
 [`https://www.npmjs.com/package/sigfox-gcloud-ubidots`](https://www.npmjs.com/package/sigfox-gcloud-ubidots)
 
+[`https://unabiz.github.io/unashield/ubidots`](https://unabiz.github.io/unashield/ubidots)
+
 [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-dashboard.jpg" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-dashboard.png)
 
 [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device-list.jpg" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device-list.png)
