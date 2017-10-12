@@ -277,7 +277,7 @@ function writeLog(req, loggingLog0, flush) {
   return Promise.all(batch)
     .then((res) => {
       //  Write the non-null records into Google Cloud.
-      const entries = res.filter(x => x);
+      const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return null;
       return loggingLog.write(entries).catch(dumpError);
     })
