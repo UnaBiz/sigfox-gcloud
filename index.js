@@ -669,6 +669,7 @@ module.exports = {
   sleep,
   dumpError,
   dumpNullError,
+  createTraceID,
   startRootSpan,
   log,
   error: log,
