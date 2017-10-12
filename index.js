@@ -261,7 +261,10 @@ function writeLog(req, loggingLog0, flush) {
   const batch = [];
   const size = batchSize(flush);
   //  If not flushing, wait till we got sufficient records.
-  if (!flush && batch.length < size) return Promise.resolve('insufficient');
+  if (!flush && batch.length < size) { // eslint-disable-next-line no-use-before-define
+    scheduleLog(req, loggingLog);
+    return Promise.resolve('insufficient');
+  }
   for (;;) {
     if (batch.length >= size) break;
     if (logTasks.length === 0) break;
