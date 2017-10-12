@@ -279,6 +279,7 @@ function writeLog(req, loggingLog0, flush) {
       //  Write the non-null records into Google Cloud.
       const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return null;
+      console.log(stringify(entries, null, 2)); ////
       return loggingLog.write(entries).catch(dumpError);
     })
     .then(() => {  //  If flushing, don't wait for the tick.
@@ -450,7 +451,6 @@ function log(req0, action, para0) {
         .then(span => (span ? span.end() : 'skipped'))
         .catch(dumpError);
     }
-    console.log({ action, para }); ////
     //  Write the log in the next tick, so we don't block.
     logTasks.push(loggingLog => (
       deferLog(req, action, para, record, now, operation, loggingLog)
