@@ -309,6 +309,23 @@ function flushLog(req) {
     .catch(dumpError);
 }
 
+function getMetadata(para, now, operation) {
+  //  Return the mandatory metadata for Google Cloud Logging.
+  const level = para.err ? 'ERROR' : 'DEBUG';
+  const timestamp = new Date(now);
+  const resource = process.env.GAE_SERVICE
+    ? { type: 'gae_app', labels: { module_id: process.env.GAE_SERVICE } }
+    : { type: 'cloud_function', labels: { function_name: functionName } };
+  const metadata = {
+    timestamp,
+    severity: level.toUpperCase(),
+    operation,
+    resource,
+  };
+  console.log({ metadata }); ////
+  return metadata;
+}
+
 function deferLog(req, action, para0, record, now, operation, loggingLog) { /* eslint-disable no-param-reassign */
   //  Write the action and parameters to Google Cloud Logging for normal log,
   //  or to Google Cloud Error Reporting if para contains error.
@@ -349,16 +366,7 @@ function deferLog(req, action, para0, record, now, operation, loggingLog) { /* e
           if (para.err) console.error(out);
           else console.log(out);
         }
-        const level = para.err ? 'ERROR' : 'DEBUG';
-        const timestamp = new Date(now);
-        const metadata = {
-          timestamp,
-          severity: level.toUpperCase(),
-          operation,
-          resource: {
-            type: 'cloud_function',
-            labels: { function_name: functionName },
-          } };
+        const metadata = getMetadata(para, now, operation);
         const event = {};
         //  Else log to Google Cloud Logging. We use _ and __ because
         //  it delimits the action and parameters nicely in the log.
