@@ -252,19 +252,17 @@ function writeLog(req, loggingLog0, flush) {
   //  If flush is true, flush all logs without waiting for the tick, i.e. when quitting.
   //  Returns a promise.
   if (logTasks.length === 0) return Promise.resolve('OK');
-  //  Create logging client here to prevent expired connection.
-  const loggingLog = loggingLog0 ||  //  Mark circular refs by [Circular]
-    require('@google-cloud/logging')(googleCredentials)
-      .log(logName, { removeCircular: true });
-
   //  Gather a batch of tasks and run them in parallel.
   const batch = [];
   const size = batchSize(flush);
   //  If not flushing, wait till we got sufficient records.
   if (!flush && batch.length < size) { // eslint-disable-next-line no-use-before-define
-    scheduleLog(req, loggingLog);
     return Promise.resolve('insufficient');
   }
+  //  Create logging client here to prevent expired connection.
+  const loggingLog = loggingLog0 ||  //  Mark circular refs by [Circular]
+    require('@google-cloud/logging')(googleCredentials)
+      .log(logName, { removeCircular: true });
   for (;;) {
     if (batch.length >= size) break;
     if (logTasks.length === 0) break;
@@ -296,7 +294,9 @@ function writeLog(req, loggingLog0, flush) {
 
 function scheduleLog(req, loggingLog0) {
   //  Schedule for the log to be written at every tick, if there are tasks.
-  if (logTasks.length === 0) return;
+  const size = batchSize(null);
+  //  If not enough tasks to make a batch, try again later.
+  if (logTasks.length < size) return;
   const loggingLog = loggingLog0;
   process.nextTick(() => {
     try {
@@ -367,8 +367,8 @@ function deferLog(req, action, para0, record, now, operation, loggingLog) { /* e
         //  it delimits the action and parameters nicely in the log.
         const direction =
           (para && para.result) ? '<<'
-          : (action === 'start') ? '>>'
-          : '__';
+            : (action === 'start') ? '>>'
+            : '__';
         let key = `_${direction}_[ ${para.device || ' ? ? ? '} ]____${action || '    '}____`;
         const keyLength = 40;
         if (key.length < keyLength) key += '_'.repeat(keyLength - key.length);
@@ -455,7 +455,7 @@ function log(req0, action, para0) {
       deferLog(req, action, para, record, now, operation, loggingLog)
         .catch(dumpError)
     ));
-    if (logTasks.length === 1) scheduleLog({});  //  Means nobody else has started schedule.
+    scheduleLog({});  //  Check if anybody else has started schedule.
     return err || para.result || null;
   } catch (err) {
     dumpError(err);
@@ -653,7 +653,7 @@ function main(event, task) {
         ? log(req, 'skip', { result: message, isProcessed, device, body, event, message })
         //  Else wait for the task to complete then dispatch the next step.
         : runTask(req, event, task, device, body, message)
-          //  Suppress all errors else Google will retry the message.
+        //  Suppress all errors else Google will retry the message.
           .catch(dumpError)
     ))
     //  Log the final result i.e. the dispatched message.
