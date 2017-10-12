@@ -256,7 +256,7 @@ function writeLog(req, loggingLog0, flush) {
   const batch = [];
   const size = batchSize(flush);
   //  If not flushing, wait till we got sufficient records.
-  if (!flush && batch.length < size) { // eslint-disable-next-line no-use-before-define
+  if (!flush && logTasks.length < size) { // eslint-disable-next-line no-use-before-define
     return Promise.resolve('insufficient');
   }
   //  Create logging client here to prevent expired connection.
@@ -450,6 +450,7 @@ function log(req0, action, para0) {
         .then(span => (span ? span.end() : 'skipped'))
         .catch(dumpError);
     }
+    console.log({action, para}); ////
     //  Write the log in the next tick, so we don't block.
     logTasks.push(loggingLog => (
       deferLog(req, action, para, record, now, operation, loggingLog)
