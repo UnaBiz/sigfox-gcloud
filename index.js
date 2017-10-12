@@ -675,6 +675,7 @@ module.exports = {
   error: log,
   flushLog,
   logQueue,
+  publishJSON,
   publishMessage,
   updateMessageHistory,
   dispatchMessage,
