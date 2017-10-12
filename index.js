@@ -318,10 +318,12 @@ function getMetadata(para, now, operation) {
   const timestamp = new Date(now);
   const resource = process.env.GAE_SERVICE
     //  For Google App Engine.
-    ? { type: 'gae_app', labels: {
-      module_id: process.env.GAE_SERVICE,
-      version_id: process.env.GAE_VERSION,
-    } }
+    ? {
+      type: 'gae_app',
+      labels: {
+        module_id: process.env.GAE_SERVICE,
+        version_id: process.env.GAE_VERSION,
+      } }
     //  For Google Cloud Functions.
     : { type: 'cloud_function', labels: { function_name: functionName } };
   const metadata = {
@@ -330,7 +332,6 @@ function getMetadata(para, now, operation) {
     operation,
     resource,
   };
-  if (process.env.GAE_SERVICE) console.log(JSON.stringify({ metadata })); ////
   return metadata;
 }
 
