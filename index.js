@@ -36,7 +36,7 @@ const tracingtrace = require('gcloud-trace/src/trace');
 const keyFilename = path.join(process.cwd(), 'google-credentials.json');
 //  If we are running in the Google Cloud, no credentials necessary.
 const googleCredentials = isCloudFunc ? null : { projectId, keyFilename };
-const logName = 'sigfox-gcloud';  //  Name of the log to write to.
+const logName = process.env.LOGNAME || 'sigfox-gcloud';  //  Name of the log to write to.
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Utility Functions
@@ -251,17 +251,18 @@ function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
   //  If flush is true, flush all logs without waiting for the tick, i.e. when quitting.
   //  Returns a promise.
+  const size = batchSize(flush);
   if (logTasks.length === 0) return Promise.resolve('OK');
+  //  If not flushing, wait till we got sufficient records to form a batch.
+  if (!flush && logTasks.length < size) { // eslint-disable-next-line no-use-before-define
+    return Promise.resolve('insufficient');
+  }
   //  Create logging client here to prevent expired connection.
   const loggingLog = loggingLog0 ||  //  Mark circular refs by [Circular]
     require('@google-cloud/logging')(googleCredentials)
       .log(logName, { removeCircular: true });
-
   //  Gather a batch of tasks and run them in parallel.
   const batch = [];
-  const size = batchSize(flush);
-  //  If not flushing, wait till we got sufficient records.
-  if (!flush && batch.length < size) return Promise.resolve('insufficient');
   for (;;) {
     if (batch.length >= size) break;
     if (logTasks.length === 0) break;
@@ -276,7 +277,7 @@ function writeLog(req, loggingLog0, flush) {
   return Promise.all(batch)
     .then((res) => {
       //  Write the non-null records into Google Cloud.
-      const entries = res.filter(x => x);
+      const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return null;
       return loggingLog.write(entries).catch(dumpError);
     })
@@ -293,7 +294,9 @@ function writeLog(req, loggingLog0, flush) {
 
 function scheduleLog(req, loggingLog0) {
   //  Schedule for the log to be written at every tick, if there are tasks.
-  if (logTasks.length === 0) return;
+  const size = batchSize(null);
+  //  If not enough tasks to make a batch, try again later.
+  if (logTasks.length < size) return;
   const loggingLog = loggingLog0;
   process.nextTick(() => {
     try {
@@ -314,7 +317,12 @@ function getMetadata(para, now, operation) {
   const level = para.err ? 'ERROR' : 'DEBUG';
   const timestamp = new Date(now);
   const resource = process.env.GAE_SERVICE
-    ? { type: 'gae_app', labels: { module_id: process.env.GAE_SERVICE } }
+    //  For Google App Engine.
+    ? { type: 'gae_app', labels: {
+      module_id: process.env.GAE_SERVICE,
+      version_id: process.env.GAE_VERSION,
+    } }
+    //  For Google Cloud Functions.
     : { type: 'cloud_function', labels: { function_name: functionName } };
   const metadata = {
     timestamp,
@@ -322,7 +330,7 @@ function getMetadata(para, now, operation) {
     operation,
     resource,
   };
-  console.log({ metadata }); ////
+  if (process.env.GAE_SERVICE) console.log(JSON.stringify({ metadata })); ////
   return metadata;
 }
 
@@ -353,35 +361,27 @@ function deferLog(req, action, para0, record, now, operation, loggingLog) { /* e
             console.error({ deferLog: err.message, json });
           } /* eslint-enable no-console */
         }
-        if (req) {
-          //  Log the user properties.
-          if (req.user) {
-            record.user = { email: req.user.email || req.user.emails || req.user };
-          }
+        //  Log the user properties.
+        if (req.user) {
+          record.user = { email: req.user.email || req.user.emails || req.user };
         }
         record.source = process.env.GAE_SERVICE || process.env.FUNCTION_NAME || logName;
-        if (!isProduction || process.env.CIRCLECI) {
-          //  Log to console in dev.
+        if (!isProduction || process.env.CIRCLECI) {  //  Log to console in dev.
           const out = [action, util.inspect(record, { colors: true })].join(' | ');
           if (para.err) console.error(out);
           else console.log(out);
         }
-        const metadata = getMetadata(para, now, operation);
-        const event = {};
-        //  Else log to Google Cloud Logging. We use _ and __ because
-        //  it delimits the action and parameters nicely in the log.
+        //  Else log to Google Cloud Logging.
         const direction =
-          (para && para.result) ? '<<'
-            : (action === 'start') ? '>>'
+          (para && para.result) ? '<<'    //  Call has completed
+            : (action === 'start') ? '>>' //  Call has started
             : '__';
         let key = `_${direction}_[ ${para.device || ' ? ? ? '} ]____${action || '    '}____`;
         const keyLength = 40;
         if (key.length < keyLength) key += '_'.repeat(keyLength - key.length);
+        const event = {};
         event[key] = para;
-        if (!isCloudFunc) {
-          const out = [action, require('util').inspect(para, { colors: true })].join(' | ');
-          console.log(out);
-        }
+        const metadata = getMetadata(para, now, operation);
         return loggingLog.entry(metadata, event);
       })
       .catch(dumpNullError);
@@ -390,13 +390,47 @@ function deferLog(req, action, para0, record, now, operation, loggingLog) { /* e
   }
 } /* eslint-enable no-param-reassign */
 
+function getOperation(req, action, para) {
+  //  Return the operation object for Google Cloud Logging.
+  //  If para contains an error or result, end the child span.
+  //  Else create the child span if this is the first time.
+  const operationid = [
+    action,
+    (req.traceid && req.traceid[0]) ? req.traceid[0] : 'missing_traceid',
+  ].join('_');
+  const operation = {
+    //  Optional. An arbitrary operation identifier. Log entries with the same identifier are assumed to be part of the same operation.
+    id: operationid,
+    //  Optional. An arbitrary producer identifier. The combination of id and producer must be globally unique. Examples for producer: "MyDivision.MyBigCompany.com", "github.com/MyProject/MyApplication".
+    producer: 'unabiz.com',
+    //  Optional. Set this to True if this is the first log entry in the operation.
+    //  eslint-disable-next-line no-unneeded-ternary
+    first: allSpanPromises[operationid] ? false : true,
+    //  Optional. Set this to True if this is the last log entry in the operation.
+    //  eslint-disable-next-line no-unneeded-ternary
+    last: (para.err || para.result) ? true : false,
+  };
+  //  If first time: Instrument the function by creating a child span.
+  if (operation.first) allSpanPromises[operationid] = createChildSpan(req, action);
+  else if (operation.last && allSpanPromises[operationid]) {
+    //  If last time: End the child span.
+    const promise = allSpanPromises[operationid];
+    //  Change the promise to return null in case we call twice.
+    allSpanPromises[operationid] = Promise.resolve(null);
+    promise
+      .then(span => (span ? span.end() : 'skipped'))
+      .catch(dumpError);
+  }
+  return operation;
+}
+
 /* eslint-disable no-underscore-dangle, import/newline-after-import, no-param-reassign */
 function log(req0, action, para0) {
   //  Write the action and parameters to Google Cloud Logging for normal log,
   //  or to Google Cloud Error Reporting if para contains error.
-  //  Returns a promise for the error, if it exists, or the result promise,
-  //  else null promise. req contains the Express or PubSub request info.
-  //  Don't log any null values, causes Google Log errors.
+  //  Returns the error, if it exists, or the result, else null.
+  //  req contains the Express or PubSub request info.
+  //  Don't log any null values, causes Google Cloud Logging errors.
   try {
     const now = Date.now();
     const req = req0 || {};
@@ -429,38 +463,13 @@ function log(req0, action, para0) {
       if (req.deviceid) para.deviceid = req.deviceid;
     }
     //  Create the log operation.
-    const operationid = [
-      action,
-      (req.traceid && req.traceid[0]) ? req.traceid[0] : 'missing_traceid',
-    ].join('_');
-    const operation = {
-      //  Optional. An arbitrary operation identifier. Log entries with the same identifier are assumed to be part of the same operation.
-      id: operationid,
-      //  Optional. An arbitrary producer identifier. The combination of id and producer must be globally unique. Examples for producer: "MyDivision.MyBigCompany.com", "github.com/MyProject/MyApplication".
-      producer: 'unabiz.com',
-      //  Optional. Set this to True if this is the first log entry in the operation.
-      //  eslint-disable-next-line no-unneeded-ternary
-      first: allSpanPromises[operationid] ? false : true,
-      //  Optional. Set this to True if this is the last log entry in the operation.
-      //  eslint-disable-next-line no-unneeded-ternary
-      last: (para.err || para.result) ? true : false,
-    };
-    //  Instrument the function by creating a child span.
-    if (operation.first) allSpanPromises[operationid] = createChildSpan(req, action);
-    else if (operation.last && allSpanPromises[operationid]) {
-      const promise = allSpanPromises[operationid];
-      //  Change the promise to return null in case we call twice.
-      allSpanPromises[operationid] = Promise.resolve(null);
-      promise
-        .then(span => (span ? span.end() : 'skipped'))
-        .catch(dumpError);
-    }
-    //  Write the log in the next tick, so we don't block.
+    const operation = getOperation(req, action, para);
+    //  Enqueue and write the log in the next tick, so we don't block.
     logTasks.push(loggingLog => (
       deferLog(req, action, para, record, now, operation, loggingLog)
         .catch(dumpError)
     ));
-    if (logTasks.length === 1) scheduleLog({});  //  Means nobody else has started schedule.
+    scheduleLog({});  //  Schedule for next tick.
     return err || para.result || null;
   } catch (err) {
     dumpError(err);
