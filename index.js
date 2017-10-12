@@ -252,17 +252,16 @@ function writeLog(req, loggingLog0, flush) {
   //  If flush is true, flush all logs without waiting for the tick, i.e. when quitting.
   //  Returns a promise.
   if (logTasks.length === 0) return Promise.resolve('OK');
-  //  Gather a batch of tasks and run them in parallel.
-  const batch = [];
-  const size = batchSize(flush);
-  //  If not flushing, wait till we got sufficient records.
-  if (!flush && batch.length < size) { // eslint-disable-next-line no-use-before-define
-    return Promise.resolve('insufficient');
-  }
   //  Create logging client here to prevent expired connection.
   const loggingLog = loggingLog0 ||  //  Mark circular refs by [Circular]
     require('@google-cloud/logging')(googleCredentials)
       .log(logName, { removeCircular: true });
+
+  //  Gather a batch of tasks and run them in parallel.
+  const batch = [];
+  const size = batchSize(flush);
+  //  If not flushing, wait till we got sufficient records.
+  if (!flush && batch.length < size) return Promise.resolve('insufficient');
   for (;;) {
     if (batch.length >= size) break;
     if (logTasks.length === 0) break;
@@ -294,9 +293,7 @@ function writeLog(req, loggingLog0, flush) {
 
 function scheduleLog(req, loggingLog0) {
   //  Schedule for the log to be written at every tick, if there are tasks.
-  const size = batchSize(null);
-  //  If not enough tasks to make a batch, try again later.
-  if (logTasks.length < size) return;
+  if (logTasks.length === 0) return;
   const loggingLog = loggingLog0;
   process.nextTick(() => {
     try {
@@ -455,7 +452,7 @@ function log(req0, action, para0) {
       deferLog(req, action, para, record, now, operation, loggingLog)
         .catch(dumpError)
     ));
-    scheduleLog({});  //  Check if anybody else has started schedule.
+    if (logTasks.length === 1) scheduleLog({});  //  Means nobody else has started schedule.
     return err || para.result || null;
   } catch (err) {
     dumpError(err);
