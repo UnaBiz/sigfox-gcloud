@@ -251,11 +251,9 @@ function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
   //  If flush is true, flush all logs without waiting for the tick, i.e. when quitting.
   //  Returns a promise.
-  if (logTasks.length === 0) return Promise.resolve('OK');
-  //  Gather a batch of tasks and run them in parallel.
-  const batch = [];
   const size = batchSize(flush);
-  //  If not flushing, wait till we got sufficient records.
+  if (logTasks.length === 0) return Promise.resolve('OK');
+  //  If not flushing, wait till we got sufficient records to form a batch.
   if (!flush && logTasks.length < size) { // eslint-disable-next-line no-use-before-define
     return Promise.resolve('insufficient');
   }
@@ -263,6 +261,8 @@ function writeLog(req, loggingLog0, flush) {
   const loggingLog = loggingLog0 ||  //  Mark circular refs by [Circular]
     require('@google-cloud/logging')(googleCredentials)
       .log(logName, { removeCircular: true });
+  //  Gather a batch of tasks and run them in parallel.
+  const batch = [];
   for (;;) {
     if (batch.length >= size) break;
     if (logTasks.length === 0) break;
@@ -450,7 +450,7 @@ function log(req0, action, para0) {
         .then(span => (span ? span.end() : 'skipped'))
         .catch(dumpError);
     }
-    console.log({action, para}); ////
+    console.log({ action, para }); ////
     //  Write the log in the next tick, so we don't block.
     logTasks.push(loggingLog => (
       deferLog(req, action, para, record, now, operation, loggingLog)
