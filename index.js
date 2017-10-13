@@ -37,6 +37,7 @@ const keyFilename = path.join(process.cwd(), 'google-credentials.json');
 //  If we are running in the Google Cloud, no credentials necessary.
 const googleCredentials = isCloudFunc ? null : { projectId, keyFilename };
 const logName = process.env.LOGNAME || 'sigfox-gcloud';  //  Name of the log to write to.
+const logKeyLength = process.env.LOGKEYLENGTH ? parseInt(process.env.LOGKEYLENGTH, 10) : 40;  //  Width of the left column in logs
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Utility Functions
@@ -378,8 +379,7 @@ function deferLog(req, action, para0, record, now, operation, loggingLog) { /* e
             : (action === 'start') ? '>>' //  Call has started
             : '__';
         let key = `_${direction}_[ ${para.device || req.device || ' ? ? ? '} ]____${action || '    '}____`;
-        const keyLength = 40;
-        if (key.length < keyLength) key += '_'.repeat(keyLength - key.length);
+        if (key.length < logKeyLength) key += '_'.repeat(logKeyLength - key.length);
         const event = {};
         event[key] = para;
         const metadata = getMetadata(para, now, operation);
