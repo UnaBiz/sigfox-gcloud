@@ -419,6 +419,9 @@ function getOperation(req, action, para) {
     //  eslint-disable-next-line no-unneeded-ternary
     last: (para.err || para.result) ? true : false,
   };
+  //  Don't instrument for Google App Engine.
+  if (process.env.GAE_SERVICE) return operation;
+
   //  If first time: Instrument the function by creating a child span.
   if (operation.first) allSpanPromises[operationid] = createChildSpan(req, action);
   else if (operation.last && allSpanPromises[operationid]) {
