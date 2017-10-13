@@ -83,13 +83,21 @@ function dumpNullError(error) {
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Instrumentation Functions: Trace the execution of this Sigfox Callback across multiple Cloud Functions
 
-function getSpanName(body) {
+function getSpanName(req) {
   //  Return a span name based on the device ID, sequence number and basestationTime:
   //    device_seqNumber_baseStationTime
   //  Will be used to trace the request across Cloud Functions.
-  if (!body) return 'missing_body';
-  const device = body.device ? body.device.toUpperCase() : 'missing_device';
-  const seqNumber = body.seqNumber || 'missing_seqNumber';
+  const body = req.body || {};
+  const device = req.device
+    ? req.device.toUpperCase()
+    : body.device
+      ? body.device.toUpperCase()
+      : 'missing_device';
+  const seqNumber = (req.seqNumber !== null && req.seqNumber !== undefined)
+  ? req.seqNumber
+  : (body.seqNumber !== null && body.seqNumber !== undefined)
+    ? body.seqNumber
+    : 'missing_seqNumber';
   return [device, seqNumber].join(' seq:');
 }
 
@@ -102,7 +110,7 @@ function startRootSpan(req, rootTrace0) {
   const labels = {};
   const rootTrace = rootTrace0 || tracing.startTrace();
   //  Start the span.
-  const rootSpanName = getSpanName(req.body);
+  const rootSpanName = getSpanName(req);
   const rootSpan = rootTrace.startSpan(rootSpanName, labels);
   rootSpan.end = rootTrace.end.bind(rootTrace);
   //  Cache the root trace and span in the request object.
