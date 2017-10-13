@@ -267,7 +267,7 @@ function writeLog(req, loggingLog0, flush) {
     return Promise.resolve('insufficient');
   }
   //  Create logging client here to prevent expired connection.
-  const loggingLog = /* loggingLog0 || */  //  Mark circular refs by [Circular]
+  const loggingLog = loggingLog0 ||  //  Mark circular refs by [Circular]
     require('@google-cloud/logging')(googleCredentials)
       .log(logName, { removeCircular: true });
   //  Gather a batch of tasks and run them in parallel.
