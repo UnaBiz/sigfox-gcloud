@@ -1,6 +1,6 @@
 {
   "name": "logToGoogleSheets",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "author": {
     "name": "Lee Lup Yuen",
     "email": "ly.lee@unabiz.com",
@@ -20,7 +20,7 @@
     "dnscache": "^1.0.1",
     "dotenv": "^4.0.0",
     "googleapis": "^22.2.0",
-    "sigfox-gcloud": ">=1.0.0",
+    "sigfox-gcloud": ">=1.0.2",
     "safe-buffer": "5.0.1",
     "json-stringify-safe": "^5.0.1",
     "node-fetch": "^1.6.3",

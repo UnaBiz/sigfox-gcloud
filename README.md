@@ -12,11 +12,15 @@ Sigfox server with Google Cloud Functions and Google Cloud PubSub message queues
   crashing will not affect others. Google Cloud PubSub message
   queues are used to pass the Sigfox messages reliably between processing modules.
 
+Read about the architecture here: [How To Build Your Sigfox Server](https://medium.com/@ly.lee/how-to-build-your-sigfox-server-version-1-0-6763732692fd)
+
 Other `sigfox-cloud` modules available:
 
 1. [`sigfox-gcloud-ubidots`:](https://www.npmjs.com/package/sigfox-gcloud-ubidots)
     Adapter for integrating Sigfox devices with the easy and friendly **Ubidots IoT platform**
 
+2. [`sigfox-gcloud-data`:](https://www.npmjs.com/package/sigfox-gcloud-data)
+    Adapter for writing Sigfox messages into SQL databases like **MySQL, Postgres, MSSQL, MariaDB and Oracle**
 
 [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/sigfox-gcloud-arch.svg)
 
@@ -405,6 +409,8 @@ If we plan to use the downlink capability, there are two additional things to co
 1.  See this for the definition of structured messages:
 
     https://github.com/UnaBiz/unabiz-arduino/wiki/UnaShield
+
+1.  Also read about the architecture here: [How To Build Your Sigfox Server](https://medium.com/@ly.lee/how-to-build-your-sigfox-server-version-1-0-6763732692fd)
 
 ### Viewing `sigfox-gcloud` server logs
 
@@ -804,3 +810,12 @@ or other kinds of GPS tracking data.  For details, check out:
 
 [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device.jpg" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/ubidots-device.png)
 
+# `sigfox-gcloud-data` adapter for databases
+
+The [`sigfox-gcloud-data`](https://www.npmjs.com/package/sigfox-gcloud-data) adapter is a Google Cloud Function 
+(developed with the `sigfox-gcloud` framework) that writes decoded Sigfox messages into many types of SQL databases
+including **MySQL, Postgres, MSSQL, MariaDB and Oracle**. For details, check out:
+                                                          
+[`https://www.npmjs.com/package/sigfox-gcloud-data`](https://www.npmjs.com/package/sigfox-gcloud-data)
+
+[<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/data-mysql.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/data-mysql.png)
