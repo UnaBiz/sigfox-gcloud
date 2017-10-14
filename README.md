@@ -203,11 +203,11 @@ instead of the Windows convention (carriage return + linefeed: `\r \n`).
     Click **"Device Type"**<br>
     Click the Device Type that you wish to connect to Google Cloud<br>
     
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type.jpg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type.png)
     
 1.  Click **"Callbacks"**
 
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type-callbacks.png" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type-callbacks.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type-callbacks.jpg" width="1024"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/device-type-callbacks.png)
 
 1.  Click **"New"**
 
@@ -215,7 +215,7 @@ instead of the Windows convention (carriage return + linefeed: `\r \n`).
     
 1.  When prompted to select the callback type, select **Custom Callback**
     
-    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png)
+    [<kbd><img src="https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.jpg" width="800"></kbd>](https://storage.googleapis.com/unabiz-media/sigfox-gcloud/callback-custom.png)
     
 1.  Fill in the callback details as follows:
 
