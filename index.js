@@ -58,10 +58,12 @@ function removeNulls(obj0, level) {
   if (level > 3) return '(truncated)';  //  Truncate at depth 3 to reduce log size.
   const obj = Object.assign({}, obj0);
   for (const key of Object.keys(obj)) {
-    const val = obj[key];
+    let val = obj[key];
     if (val === null || val === undefined || typeof val === 'function') {
       delete obj[key];
     } else if (typeof val === 'object' && !Array.isArray(val)) {
+      //  Google cannot log objects without hasOwnProperty.  We fix here.
+      if (!val.hasOwnProperty) val = Object.assign({}, val);
       obj[key] = removeNulls(val, (level || 0) + 1);
     }
   }
