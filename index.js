@@ -59,7 +59,7 @@ function removeNulls(obj0, level) {
   const obj = Object.assign({}, obj0);
   for (const key of Object.keys(obj)) {
     const val = obj[key];
-    if (val === null || val === undefined) {
+    if (val === null || val === undefined || typeof val === 'function') {
       delete obj[key];
     } else if (typeof val === 'object' && !Array.isArray(val)) {
       obj[key] = removeNulls(val, (level || 0) + 1);
