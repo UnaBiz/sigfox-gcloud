@@ -475,7 +475,7 @@ function log(req0, action, para0) {
 
     if (!req.traceid) req.traceid = createTraceID(now);
     //  Compute the duration in seconds with 1 decimal place.
-    if (req.starttime) para0.duration = parseInt((now - req.starttime) / 100, 10) / 10.0;
+    if (req.starttime) para.duration = parseInt((now - req.starttime) / 100, 10) / 10.0;
     else req.starttime = now;
     if (err) dumpError(err);
     if (err && isProduction) {
