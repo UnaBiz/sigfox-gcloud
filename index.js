@@ -55,8 +55,6 @@ function removeNulls(obj, level) {
   //  Remove null values recursively before logging to Google Cloud.
   //  We don't remove circular references because Google Cloud Logging
   //  removes circular references.  level should initially be null.
-  if (level > 3) return '(truncated)';  //  Truncate at depth 3 to reduce log size.
-  const nextLevel = (level || 0) + 1;
   if (obj === null || obj === undefined || typeof obj === 'function') {
     return null;  //  Parent should discard this item.
   }
@@ -64,6 +62,8 @@ function removeNulls(obj, level) {
   if (!Array.isArray(obj) && typeof obj !== 'object') {
     return obj;  // Valid scalar.
   }
+  if (level > 3) return '(truncated)';  //  Truncate at depth 3 to reduce log size.
+  const nextLevel = (level || 0) + 1;
   //  If obj is an array, clean each array item.
   if (Array.isArray(obj)) {
     const result = [];
