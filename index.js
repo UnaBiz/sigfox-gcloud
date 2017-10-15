@@ -51,22 +51,44 @@ function sleep(req, res, millisec) {
   });
 }
 
-function removeNulls(obj0, level) {
+function removeNulls(obj, level) {
   //  Remove null values recursively before logging to Google Cloud.
   //  We don't remove circular references because Google Cloud Logging
   //  removes circular references.  level should initially be null.
   if (level > 3) return '(truncated)';  //  Truncate at depth 3 to reduce log size.
-  const obj = Object.assign({}, obj0);
-  for (const key of Object.keys(obj)) {
-    let val = obj[key];
-    if (val === null || val === undefined || typeof val === 'function') {
-      delete obj[key];
-    } else if (typeof val === 'object' && !Array.isArray(val)) {
-      //  Google cannot log objects without hasOwnProperty.  We fix here.
-      if (!val.hasOwnProperty) val = Object.assign({}, val);
-      obj[key] = removeNulls(val, (level || 0) + 1);
-    }
+  const nextLevel = (level || 0) + 1;
+  if (obj === null || obj === undefined || typeof obj === 'function') {
+    return null;  //  Parent should discard this item.
   }
+  //  If obj is a scalar value, return.
+  if (!Array.isArray(obj) && typeof obj !== 'object') {
+    return obj;  // Valid scalar.
+  }
+  //  If obj is an array, clean each array item.
+  if (Array.isArray(obj)) {
+    const result = [];
+    for (const item of obj) {
+      let cleanItem = removeNulls(item, nextLevel);
+      //  If item is invalid, push a "removed" message to preserve array length.
+      if (cleanItem === null) cleanItem = '(removed)';
+      result.push(cleanItem);
+    }
+    return result;
+  }
+  //  Else clean the object by each key.
+  if (typeof obj === 'object') {
+    //  Google cannot log objects without hasOwnProperty.  We copy item by item to restore hasOwnProperty.
+    const result = {};
+    for (const key of Object.keys(obj)) {
+      const item = obj[key];
+      const cleanItem = removeNulls(item, nextLevel);
+      //  Skip any invalid items.
+      if (cleanItem === null) continue;
+      result[key] = cleanItem;
+    }
+    return result;
+  }
+  //  Should not come here.
   return obj;
 }
 
@@ -698,6 +720,7 @@ module.exports = {
   projectId: process.env.GCLOUD_PROJECT,
   functionName: process.env.FUNCTION_NAME || 'unknown_function',
   sleep,
+  removeNulls,
   dumpError,
   dumpNullError,
   createTraceID,
