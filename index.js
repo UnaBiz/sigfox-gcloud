@@ -614,7 +614,7 @@ function dispatchMessage(req, oldMessage, device) {
   //  route looks like [ messagetype1, messagetype2, ... ]
   //  Returns a promise for the updated message.  Caller must have set
   //  const req = { starttime: Date.now(), event };
-
+  if (!oldMessage) return Promise.resolve({});
   //  If already dispatched, return.
   if (oldMessage.isDispatched) return Promise.resolve(oldMessage);
   log(req, 'dispatchMessage', { device });
