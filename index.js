@@ -310,7 +310,8 @@ function writeLog(req, loggingLog0, flush) {
       //  Write the non-null records into Google Cloud.
       const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return null;
-      return loggingLog.write(entries).catch(dumpError);
+      return loggingLog.write(entries)  //  .catch(dumpError);
+        .catch(error => console.error('writeLog', error.message, error.stack));
     })
     .then(() => {  //  If flushing, don't wait for the tick.
       if (flush) {
@@ -501,8 +502,8 @@ function log(req0, action, para0) {
     const operation = getOperation(req, action, para);
     if (process.env.LOG_FOREGROUND) {  //  For debugging, log in foreground.
       deferLog(req, action, para, record, now, operation, loggingLog)
-        .then(entry => loggingLog.write(entry))
-        .catch(dumpError);
+        .then(entry => loggingLog.write(entry))  // .catch(dumpError);
+        .catch(error => console.error('log', error.message, error.stack));
       return err || para.result || null;
     }
     //  Enqueue and write the log in the next tick, so we don't block.
