@@ -444,7 +444,7 @@ function getOperation(req, action, para) {
     last: (para.err || para.result) ? true : false,
   };
   //  Don't instrument for Google App Engine.
-  if (process.env.GAE_SERVICE) return operation;
+  if (process.env.GAE_SERVICE || process.env.DISABLE_INSTRUMENTATION) return operation;
 
   //  If first time: Instrument the function by creating a child span.
   if (operation.first) allSpanPromises[operationid] = createChildSpan(req, action);
@@ -500,6 +500,15 @@ function log(req0, action, para0) {
     }
     //  Create the log operation.
     const operation = getOperation(req, action, para);
+    if (process.env.LOG_FOREGROUND) {  //  For debugging, log in foreground.
+      const loggingLog = //  Mark circular refs by [Circular]
+        require('@google-cloud/logging')(googleCredentials)
+          .log(logName, { removeCircular: true });
+      return deferLog(req, action, para, record, now, operation, loggingLog)
+        .then(entry => loggingLog.write(entry))
+        .catch(dumpError)
+        .then(() => (err || para.result || null));
+    }
     //  Enqueue and write the log in the next tick, so we don't block.
     logTasks.push(loggingLog => (
       deferLog(req, action, para, record, now, operation, loggingLog)
