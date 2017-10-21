@@ -155,7 +155,7 @@ function getRootSpan(req, rootTraceId0) {
     const rootTraceId = rootTraceId0 || req.rootTraceId;
     if (!rootTraceId) {
       //  Missing trace ID.
-      dumpError(new Error('missing_traceid'));
+      if (process.env.SHOW_TRACE_ERRORS) dumpError(new Error('missing_traceid'));
       return {
         rootTracePromise: Promise.resolve(null),
         rootSpanPromise: Promise.resolve(null),
