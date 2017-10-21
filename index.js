@@ -38,6 +38,8 @@ const keyFilename = path.join(process.cwd(), 'google-credentials.json');
 const googleCredentials = isCloudFunc ? null : { projectId, keyFilename };
 const logName = process.env.LOGNAME || 'sigfox-gcloud';  //  Name of the log to write to.
 const logKeyLength = process.env.LOGKEYLENGTH ? parseInt(process.env.LOGKEYLENGTH, 10) : 40;  //  Width of the left column in logs
+const loggingLog = require('@google-cloud/logging')(googleCredentials) //  Mark circular refs by [Circular]
+    .log(logName, { removeCircular: true });
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Utility Functions
@@ -290,10 +292,6 @@ function writeLog(req, loggingLog0, flush) {
   if (!flush && logTasks.length < size) { // eslint-disable-next-line no-use-before-define
     return Promise.resolve('insufficient');
   }
-  //  Create logging client here to prevent expired connection.
-  const loggingLog = loggingLog0 ||  //  Mark circular refs by [Circular]
-    require('@google-cloud/logging')(googleCredentials)
-      .log(logName, { removeCircular: true });
   //  Gather a batch of tasks and run them in parallel.
   const batch = [];
   for (;;) {
@@ -325,12 +323,13 @@ function writeLog(req, loggingLog0, flush) {
     .catch(dumpError);
 }
 
+// eslint-disable-next-line no-unused-vars
 function scheduleLog(req, loggingLog0) {
   //  Schedule for the log to be written at every tick, if there are tasks.
   const size = batchSize(null);
   //  If not enough tasks to make a batch, try again later.
   if (logTasks.length < size) return;
-  const loggingLog = loggingLog0;
+  //  const loggingLog = loggingLog0;
   process.nextTick(() => {
     try {
       writeLog(req, loggingLog)
@@ -368,7 +367,7 @@ function getMetadata(para, now, operation) {
   return metadata;
 }
 
-function deferLog(req, action, para0, record, now, operation, loggingLog) { /* eslint-disable no-param-reassign */
+function deferLog(req, action, para0, record, now, operation, loggingLog0) { /* eslint-disable no-param-reassign */
   //  Write the action and parameters to Google Cloud Logging for normal log,
   //  or to Google Cloud Error Reporting if para contains error.
   //  loggingLog contains the Google Cloud logger.  Returns a promise.
@@ -415,7 +414,7 @@ function deferLog(req, action, para0, record, now, operation, loggingLog) { /* e
         const event = {};
         event[key] = para;
         const metadata = getMetadata(para, now, operation);
-        return loggingLog.entry(metadata, event);
+        return loggingLog0.entry(metadata, event);
       })
       .catch(dumpNullError);
   } catch (err) {
@@ -501,17 +500,14 @@ function log(req0, action, para0) {
     //  Create the log operation.
     const operation = getOperation(req, action, para);
     if (process.env.LOG_FOREGROUND) {  //  For debugging, log in foreground.
-      const loggingLog = //  Mark circular refs by [Circular]
-        require('@google-cloud/logging')(googleCredentials)
-          .log(logName, { removeCircular: true });
       deferLog(req, action, para, record, now, operation, loggingLog)
         .then(entry => loggingLog.write(entry))
         .catch(dumpError);
       return err || para.result || null;
     }
     //  Enqueue and write the log in the next tick, so we don't block.
-    logTasks.push(loggingLog => (
-      deferLog(req, action, para, record, now, operation, loggingLog)
+    logTasks.push(loggingLog0 => (
+      deferLog(req, action, para, record, now, operation, loggingLog0)
         .catch(dumpError)
     ));
     scheduleLog({});  //  Schedule for next tick.
