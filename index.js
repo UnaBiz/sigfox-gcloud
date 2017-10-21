@@ -504,10 +504,10 @@ function log(req0, action, para0) {
       const loggingLog = //  Mark circular refs by [Circular]
         require('@google-cloud/logging')(googleCredentials)
           .log(logName, { removeCircular: true });
-      return deferLog(req, action, para, record, now, operation, loggingLog)
+      deferLog(req, action, para, record, now, operation, loggingLog)
         .then(entry => loggingLog.write(entry))
-        .catch(dumpError)
-        .then(() => (err || para.result || null));
+        .catch(dumpError);
+      return err || para.result || null;
     }
     //  Enqueue and write the log in the next tick, so we don't block.
     logTasks.push(loggingLog => (
