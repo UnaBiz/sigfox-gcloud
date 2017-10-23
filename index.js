@@ -233,8 +233,9 @@ function publishJSON(req, topic, obj) {
     });
 }
 
-function logQueue(req, action, para0) { /* eslint-disable global-require, no-param-reassign */
+function logQueue(req, action, para0, logQueueConfig0) { /* eslint-disable global-require, no-param-reassign */
   //  Write log to a PubSub queue for easier analysis.
+  //  If specified, logQueueConfig will override the default log queues.
   //  TODO: Reuse the PubSub clients to write batches of records.
   try {
     if (module.exports.logQueueConfig.length === 0) return Promise.resolve(null);
@@ -262,7 +263,8 @@ function logQueue(req, action, para0) { /* eslint-disable global-require, no-par
     const msg = { timestamp: now, starttime, traceid, userid, companyid, token, action, para };
     let promises = Promise.resolve('start');
     const result = [];
-    module.exports.logQueueConfig.forEach((config) => {
+    const logQueueConfig = logQueueConfig0 || module.exports.logQueueConfig;
+    logQueueConfig.forEach((config) => {
       //  Create pubsub client upon use to prevent expired connection.
       const credentials = Object.assign({}, googleCredentials,
         { projectId: config.projectId });
