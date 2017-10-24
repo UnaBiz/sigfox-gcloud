@@ -11,11 +11,10 @@
 //  This code is critical, all changes must be reviewed.  It must be
 //  kept as simple as possible to reduce the chance of failure.
 
-/* eslint-disable camelcase, no-console, no-nested-ternary, import/no-dynamic-require,
-  import/newline-after-import, import/no-unresolved, global-require, max-len */
-//  Enable DNS cache in case we hit the DNS quota for Google Cloud Functions.
-require('dnscache')({ enable: true });
+/* eslint-disable camelcase, no-console, no-nested-ternary, import/no-dynamic-require, import/newline-after-import, import/no-unresolved, global-require, max-len */
+require('dnscache')({ enable: true });  //  Enable DNS cache in case we hit the DNS quota for Google Cloud Functions.
 process.on('uncaughtException', err => console.error(err.message, err.stack));  //  Display uncaught exceptions.
+process.on('unhandledRejection', (reason, p) => console.error('Unhandled Rejection at:', p, 'reason:', reason));
 if (process.env.FUNCTION_NAME) {
   //  Load the Google Cloud Trace and Debug Agents before any require().
   //  Only works in Cloud Function.
