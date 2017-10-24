@@ -94,15 +94,17 @@ function removeNulls(obj, level) {
   return obj;
 }
 
-function dumpError(error) {
+function dumpError(error, action, para) {
   //  Dump the error to the console and suppress the error.  Return the error.
-  console.error(error.message, error.stack);
+  //  Action and para are optional.
+  console.error(action || '', error.message, error.stack, para || '');
   return error;
 }
 
-function dumpNullError(error) {
+function dumpNullError(error, action, para) {
   //  Dump the error to the console and suppress the error.  Return null.
-  console.error(error.message, error.stack);
+  //  Action and para are optional.
+  dumpError(error, action, para);
   return null;
 }
 
@@ -479,7 +481,7 @@ function log(req0, action, para0) {
     //  Compute the duration in seconds with 1 decimal place.
     if (req.starttime) para.duration = parseInt((now - req.starttime) / 100, 10) / 10.0;
     else req.starttime = now;
-    if (err) dumpError(err);
+    if (err) dumpError(err, action, para);
     if (err && isProduction) {
       try {
         //  Report the error to the Stackdriver Error Reporting API
