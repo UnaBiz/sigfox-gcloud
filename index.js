@@ -561,11 +561,13 @@ function getTopicByCredentials(req, credentials, topicName) {
   //  to other project IDs and topics.
   const credentialsKey = stringify(credentials);
   const topicKey = [credentialsKey, topicName].join('|');
+  log(req, 'getTopicByCredentials', { credentials, topicName, credentialsKey });
   if (!topicByCredentials[topicKey]) {
     const pubsubWithCredentials = getPubSubByCredentials(req, credentials);
     const topic = pubsubWithCredentials.topic(topicName);
     topicByCredentials[topicKey] = topic;
   }
+  log(req, 'getTopicByCredentials', { result: 'OK', credentials, topicName, credentialsKey });
   return topicByCredentials[topicKey];
 }
 
