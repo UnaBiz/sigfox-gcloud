@@ -234,19 +234,19 @@ function publishJSON(req, topic, obj) {
   //  Returns a promise.
   if (!topic) return Promise.resolve(null);
   //  Send in the next tick.
-  process.nextTick(() => {
+  /* process.nextTick(() => {
     try {
       topic.publisher().publish(new Buffer(stringify(obj)))
         .catch(dumpError);
     } catch (err) { dumpError(err); }
   });
-  return Promise.resolve(null);
+  return Promise.resolve(null); */
 
-  /* return topic.publisher().publish(new Buffer(stringify(obj)))
+  return topic.publisher().publish(new Buffer(stringify(obj)))
     .catch((error) => { // eslint-disable-next-line no-use-before-define
       log(req, 'publishJSON', { error, topic, obj });
       throw error;
-    }); */
+    });
 }
 
 function logQueue(req, action, para0, logQueueConfig0) { /* eslint-disable global-require, no-param-reassign */
