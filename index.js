@@ -229,6 +229,8 @@ function createTraceID(now0) {
   return [`${s.substr(14, 2)}${s.substr(17, 2)}-${uuidv4()}`];
 }
 
+const publishQueue = [];
+
 function publishJSON(req, topic, obj) {
   //  Publish the object as a JSON message to the PubSub topic.
   //  Returns a promise.
@@ -242,11 +244,20 @@ function publishJSON(req, topic, obj) {
   });
   return Promise.resolve(null); */
 
-  return topic.publisher().publish(new Buffer(stringify(obj)))
+  publishQueue.push(
+    Promise.resolve('start') // eslint-disable-next-line no-use-before-define
+      .then(() => log(req, 'publishJSON', { obj }))
+      .then(() => topic.publisher().publish(new Buffer(stringify(obj)))) // eslint-disable-next-line no-use-before-define
+      .then(() => log(req, 'publishJSON', { result: 'OK', obj }))
+      .catch(dumpError));
+
+  return Promise.resolve(obj);
+
+  /* return topic.publisher().publish(new Buffer(stringify(obj)))
     .catch((error) => { // eslint-disable-next-line no-use-before-define
       log(req, 'publishJSON', { error, topic, obj });
       throw error;
-    });
+    }); */
 }
 
 function logQueue(req, action, para0, logQueueConfig0) { /* eslint-disable global-require, no-param-reassign */
@@ -358,8 +369,8 @@ function scheduleLog(req, loggingLog0) {
 
 function flushLog(req) {
   //  We are about to quit.  Write all log items.
-  return writeLog(req, null, true)
-    .catch(dumpError);
+  return Promise.all(publishQueue).catch(dumpError)
+    .then(() => writeLog(req, null, true)).catch(dumpError);
 }
 
 function getMetadata(para, now, operation) {
