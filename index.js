@@ -245,12 +245,13 @@ function publishJSON(req, topic, obj) {
   return Promise.resolve(null); */
 
   const buf = new Buffer(stringify(obj));
+  const size = buf.length;
   publishQueue.push(
     Promise.resolve('start') // eslint-disable-next-line no-use-before-define
-      .then(() => log(req, 'publishJSON', { obj, size: buf.byteLength() }))
+      .then(() => log(req, 'publishJSON', { obj, size }))
       .then(() => topic.publisher().publish(buf)) // eslint-disable-next-line no-use-before-define
-      .then(() => log(req, 'publishJSON', { result: 'OK', size: buf.byteLength() })) // eslint-disable-next-line no-use-before-define
-      .catch((error) => { log(req, 'publishJSON', { error, size: buf.byteLength() }); return error; })); //  Supress error.
+      .then(() => log(req, 'publishJSON', { result: 'OK', size })) // eslint-disable-next-line no-use-before-define
+      .catch((error) => { log(req, 'publishJSON', { error, size }); return error; })); //  Supress error.
 
   return Promise.resolve(obj);
 
