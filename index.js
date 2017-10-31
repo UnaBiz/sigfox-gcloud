@@ -42,8 +42,9 @@ const logKeyLength = process.env.LOGKEYLENGTH ? parseInt(process.env.LOGKEYLENGT
 const loggingLog = require('@google-cloud/logging')(googleCredentials) //  Mark circular refs by [Circular]
     .log(logName, { removeCircular: true });
 
-const pubsubByCredentials = {};
-const topicByCredentials = {};
+//  We cache Google PubSub connections by credentials (to support cross-project messaging) and topic names.
+const pubsubByCredentials = {};  //  Maps a Google Credential JSON key to a Google PubSub connection for those credentials
+const topicByCredentials = {};  //  Maps a Google Credential JSON + topic key to a Google PubSub topic.
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Utility Functions
@@ -232,11 +233,20 @@ function publishJSON(req, topic, obj) {
   //  Publish the object as a JSON message to the PubSub topic.
   //  Returns a promise.
   if (!topic) return Promise.resolve(null);
-  return topic.publisher().publish(new Buffer(stringify(obj)))
+  //  Send in the next tick.
+  process.nextTick(() => {
+    try {
+      topic.publisher().publish(new Buffer(stringify(obj)))
+        .catch(dumpError);
+    } catch (err) { dumpError(err); }
+  });
+  return Promise.resolve(null);
+
+  /* return topic.publisher().publish(new Buffer(stringify(obj)))
     .catch((error) => { // eslint-disable-next-line no-use-before-define
       log(req, 'publishJSON', { error, topic, obj });
       throw error;
-    });
+    }); */
 }
 
 function logQueue(req, action, para0, logQueueConfig0) { /* eslint-disable global-require, no-param-reassign */
@@ -537,6 +547,8 @@ function isProcessedMessage(/* req, message */) {
 }
 
 function getPubSubByCredentials(req, credentials) {
+  //  Given the Google Credentials, return the cached PubSub connection.  Allows conecting
+  //  to other project IDs.
   const credentialsKey = stringify(credentials);
   if (!pubsubByCredentials[credentialsKey]) {
     pubsubByCredentials[credentialsKey] = pubsub(credentials);
@@ -545,6 +557,8 @@ function getPubSubByCredentials(req, credentials) {
 }
 
 function getTopicByCredentials(req, credentials, topicName) {
+  //  Given the Google Credentials and topic name, return the cached PubSub topic.  Allows conecting
+  //  to other project IDs and topics.
   const credentialsKey = stringify(credentials);
   const topicKey = [credentialsKey, topicName].join('|');
   if (!topicByCredentials[topicKey]) {
