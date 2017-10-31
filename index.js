@@ -29,6 +29,7 @@ const uuidv4 = require('uuid/v4');
 const stringify = require('json-stringify-safe');
 const tracing = require('gcloud-trace')();
 const tracingtrace = require('gcloud-trace/src/trace');
+const pubsub = require('@google-cloud/pubsub');
 
 //  Assume that the Google Service Account credentials are present in this file.
 //  This is needed for calling Google Cloud PubSub, Logging, Trace, Debug APIs
@@ -40,6 +41,9 @@ const logName = process.env.LOGNAME || 'sigfox-gcloud';  //  Name of the log to 
 const logKeyLength = process.env.LOGKEYLENGTH ? parseInt(process.env.LOGKEYLENGTH, 10) : 40;  //  Width of the left column in logs
 const loggingLog = require('@google-cloud/logging')(googleCredentials) //  Mark circular refs by [Circular]
     .log(logName, { removeCircular: true });
+
+const pubsubByCredentials = {};
+const topicByCredentials = {};
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Utility Functions
@@ -269,9 +273,8 @@ function logQueue(req, action, para0, logQueueConfig0) { /* eslint-disable globa
     logQueueConfig.forEach((config) => {
       //  Create pubsub client upon use to prevent expired connection.
       const credentials = Object.assign({}, googleCredentials,
-        { projectId: config.projectId });
-      const topic = require('@google-cloud/pubsub')(credentials)
-        .topic(config.topicName);
+        { projectId: config.projectId });  // eslint-disable-next-line no-use-before-define
+      const topic = getTopicByCredentials(req, credentials, config.topicName);
       promises = promises
         .then(() => publishJSON(req, topic, msg))
         //  Suppress any errors so logging can continue.
@@ -533,6 +536,25 @@ function isProcessedMessage(/* req, message */) {
   return Promise.resolve(false);  //  TODO
 }
 
+function getPubSubByCredentials(req, credentials) {
+  const credentialsKey = stringify(credentials);
+  if (!pubsubByCredentials[credentialsKey]) {
+    pubsubByCredentials[credentialsKey] = pubsub(credentials);
+  }
+  return pubsubByCredentials[credentialsKey];
+}
+
+function getTopicByCredentials(req, credentials, topicName) {
+  const credentialsKey = stringify(credentials);
+  const topicKey = [credentialsKey, topicName].join('|');
+  if (!topicByCredentials[topicKey]) {
+    const pubsubWithCredentials = getPubSubByCredentials(req, credentials);
+    const topic = pubsubWithCredentials.topic(topicName);
+    topicByCredentials[topicKey] = topic;
+  }
+  return topicByCredentials[topicKey];
+}
+
 function publishMessage(req, oldMessage, device, type) {
   //  Publish the message to the device or message type queue in PubSub.
   //  If device is non-null, publish to sigfox.devices.<<device>>
@@ -550,10 +572,7 @@ function publishMessage(req, oldMessage, device, type) {
   const res = module.exports.transformRoute(req, type, device, googleCredentials, topicName0);
   const credentials = res.credentials;
   const topicName = res.topicName;
-  //  Create pubsub client here to prevent expired connection.
-  //  eslint-disable-next-line global-require
-  const topic = require('@google-cloud/pubsub')(credentials).topic(topicName);
-
+  const topic = getTopicByCredentials(req, credentials, topicName);
   let message = Object.assign({}, oldMessage,
     device ? { device: (device === 'all') ? oldMessage.device : device }
       : type ? { type }
