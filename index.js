@@ -234,15 +234,7 @@ const publishQueue = [];
 function publishJSON(req, topic, obj) {
   //  Publish the object as a JSON message to the PubSub topic.
   //  Returns a promise.
-  if (!topic) return Promise.resolve(null);
-  //  Send in the next tick.
-  /* process.nextTick(() => {
-    try {
-      topic.publisher().publish(new Buffer(stringify(obj)))
-        .catch(dumpError);
-    } catch (err) { dumpError(err); }
-  });
-  return Promise.resolve(null); */
+  if (!topic || !obj) return Promise.resolve(null);
 
   /*
   const buf = new Buffer(stringify(obj));
@@ -259,8 +251,8 @@ function publishJSON(req, topic, obj) {
 
   return topic.publisher().publish(new Buffer(stringify(obj)))
     .catch((error) => { // eslint-disable-next-line no-use-before-define
-      log(req, 'publishJSON', { error, topic, obj });
-      throw error;
+      console.error('publishJSON', { message: error.message, stack: error.stack, topic, obj });
+      return error;
     });
 }
 
