@@ -252,9 +252,10 @@ function publishJSON(req, topic, obj) {
     return Promise.resolve(obj);
     */
 
-    return topic.publisher().publish(new Buffer(stringify(obj)))
+    // return topic.publisher().publish(new Buffer(stringify(obj)))
+    return topic.publisher().publish(stringify(obj))
       .catch((error) => { // eslint-disable-next-line no-use-before-define
-        console.error('publishJSON', { message: error.message, stack: error.stack, topic, obj: stringify(obj) });
+        console.error('publishJSON1', { message: error.message, stack: error.stack, topic, obj: stringify(obj, null, 2) });
         return error;
       });
   } catch (error) {
