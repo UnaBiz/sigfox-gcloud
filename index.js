@@ -257,7 +257,19 @@ function publishJSON(req, topic, obj) {
     const buf = new Buffer(JSON.stringify(obj));
     const size = buf.length;
     // return topic.publisher().publish(new Buffer(stringify(obj)))
-    return topic.publisher().publish(buf)
+    /*
+@Param {number} options.batching.maxMessages - The maximum number of messages
+to buffer before sending a payload.
+@Param {number} options.batching.maxMilliseconds - The maximum duration to
+wait before sending a payload.
+     */
+    const options = {
+      batching: {
+        maxMessages: 0,
+        maxMilliseconds: 0,
+      },
+    };
+    return topic.publisher(options).publish(buf)
       .catch((error) => { // eslint-disable-next-line no-use-before-define
         console.error('publishJSON7', { message: error.message, stack: error.stack, topic, size, buf: buf.toString() });
         return error;
