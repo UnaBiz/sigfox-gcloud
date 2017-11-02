@@ -42,8 +42,8 @@ const loggingLog = require('@google-cloud/logging')(googleCredentials) //  Mark 
     .log(logName, { removeCircular: true });
 
 //  We cache Google PubSub connections by credentials (to support cross-project messaging) and topic names.
-const pubsubByCredentials = {};  //  Maps a Google Credential JSON key to a Google PubSub connection for those credentials
-const topicByCredentials = {};  //  Maps a Google Credential JSON + topic key to a Google PubSub topic.
+// const pubsubByCredentials = {};  //  Maps a Google Credential JSON key to a Google PubSub connection for those credentials
+// const topicByCredentials = {};  //  Maps a Google Credential JSON + topic key to a Google PubSub topic.
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Utility Functions
