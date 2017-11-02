@@ -29,7 +29,6 @@ const uuidv4 = require('uuid/v4');
 const stringify = require('json-stringify-safe');
 const tracing = require('gcloud-trace')();
 const tracingtrace = require('gcloud-trace/src/trace');
-const pubsub = require('@google-cloud/pubsub');
 
 //  Assume that the Google Service Account credentials are present in this file.
 //  This is needed for calling Google Cloud PubSub, Logging, Trace, Debug APIs
@@ -254,13 +253,13 @@ function publishJSON(req, topic, obj) {
 
     // eslint-disable-next-line no-param-reassign
     obj = removeNulls(obj, -100); // eslint-disable-next-line no-param-reassign
-    if (obj.history) delete obj.history;
+    // if (obj.history) delete obj.history;
     const buf = new Buffer(JSON.stringify(obj));
     const size = buf.length;
     // return topic.publisher().publish(new Buffer(stringify(obj)))
     return topic.publisher().publish(buf)
       .catch((error) => { // eslint-disable-next-line no-use-before-define
-        console.error('publishJSON4', { message: error.message, stack: error.stack, topic, size, buf: buf.toString() });
+        console.error('publishJSON5', { message: error.message, stack: error.stack, topic, size, buf: buf.toString() });
         return error;
       });
   } catch (error) {
@@ -570,18 +569,28 @@ function isProcessedMessage(/* req, message */) {
 function getPubSubByCredentials(req, credentials) {
   //  Given the Google Credentials, return the cached PubSub connection.  Allows conecting
   //  to other project IDs.
+  //  eslint-disable-next-line global-require
+  const pubsub = require('@google-cloud/pubsub');
+  return pubsub(credentials);
+  /*
   const credentialsKey = stringify(credentials);
   if (!pubsubByCredentials[credentialsKey]) {
     pubsubByCredentials[credentialsKey] = pubsub(credentials);
   }
   return pubsubByCredentials[credentialsKey];
+  */
 }
 
 function getTopicByCredentials(req, credentials, topicName) {
   //  Given the Google Credentials and topic name, return the cached PubSub topic.  Allows conecting
   //  to other project IDs and topics.
-  const credentialsKey = stringify(credentials);
-  const topicKey = [credentialsKey, topicName].join('|');
+  // const credentialsKey = stringify(credentials);
+  // const topicKey = [credentialsKey, topicName].join('|');
+  const pubsubWithCredentials = getPubSubByCredentials(req, credentials);
+  const topic = pubsubWithCredentials.topic(topicName);
+  return topic;
+
+  /*
   log(req, 'getTopicByCredentials', { credentials, topicName, credentialsKey });
   if (!topicByCredentials[topicKey]) {
     const pubsubWithCredentials = getPubSubByCredentials(req, credentials);
@@ -590,6 +599,7 @@ function getTopicByCredentials(req, credentials, topicName) {
   }
   log(req, 'getTopicByCredentials', { result: 'OK', credentials, topicName, credentialsKey });
   return topicByCredentials[topicKey];
+  */
 }
 
 function publishMessage(req, oldMessage, device, type) {
