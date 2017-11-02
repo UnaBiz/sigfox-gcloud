@@ -234,26 +234,33 @@ const publishQueue = [];
 function publishJSON(req, topic, obj) {
   //  Publish the object as a JSON message to the PubSub topic.
   //  Returns a promise.
-  if (!topic || !obj) return Promise.resolve(null);
+  try {
+    if (!topic || !obj) return Promise.resolve(null);
+    // eslint-disable-next-line no-param-reassign
+    if (obj.type === null) delete obj.type;
 
-  /*
-  const buf = new Buffer(stringify(obj));
-  const size = buf.length;
-  publishQueue.push(
-    Promise.resolve('start') // eslint-disable-next-line no-use-before-define
-      .then(() => log(req, 'publishJSON', { obj, size }))
-      .then(() => topic.publisher().publish(buf)) // eslint-disable-next-line no-use-before-define
-      .then(() => log(req, 'publishJSON', { result: 'OK', size })) // eslint-disable-next-line no-use-before-define
-      .catch((error) => { log(req, 'publishJSON', { error, size }); return error; })); //  Supress error.
+    /*
+    const buf = new Buffer(stringify(obj));
+    const size = buf.length;
+    publishQueue.push(
+      Promise.resolve('start') // eslint-disable-next-line no-use-before-define
+        .then(() => log(req, 'publishJSON', { obj, size }))
+        .then(() => topic.publisher().publish(buf)) // eslint-disable-next-line no-use-before-define
+        .then(() => log(req, 'publishJSON', { result: 'OK', size })) // eslint-disable-next-line no-use-before-define
+        .catch((error) => { log(req, 'publishJSON', { error, size }); return error; })); //  Supress error.
 
-  return Promise.resolve(obj);
-  */
+    return Promise.resolve(obj);
+    */
 
-  return topic.publisher().publish(new Buffer(stringify(obj)))
-    .catch((error) => { // eslint-disable-next-line no-use-before-define
-      console.error('publishJSON', { message: error.message, stack: error.stack, topic, obj });
-      return error;
-    });
+    return topic.publisher().publish(new Buffer(stringify(obj)))
+      .catch((error) => { // eslint-disable-next-line no-use-before-define
+        console.error('publishJSON', { message: error.message, stack: error.stack, topic, obj: stringify(obj) });
+        return error;
+      });
+  } catch (error) {
+    console.error(error.message, error.stack);
+    return Promise.resolve('OK');
+  }
 }
 
 function logQueue(req, action, para0, logQueueConfig0) { /* eslint-disable global-require, no-param-reassign */
