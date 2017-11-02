@@ -253,13 +253,13 @@ function publishJSON(req, topic, obj) {
 
     // eslint-disable-next-line no-param-reassign
     obj = removeNulls(obj, -100); // eslint-disable-next-line no-param-reassign
-    if (obj.history) delete obj.history; // //
+    // if (obj.history) delete obj.history; // //
     const buf = new Buffer(JSON.stringify(obj));
     const size = buf.length;
     // return topic.publisher().publish(new Buffer(stringify(obj)))
     return topic.publisher().publish(buf)
       .catch((error) => { // eslint-disable-next-line no-use-before-define
-        console.error('publishJSON6', { message: error.message, stack: error.stack, topic, size, buf: buf.toString() });
+        console.error('publishJSON7', { message: error.message, stack: error.stack, topic, size, buf: buf.toString() });
         return error;
       });
   } catch (error) {
