@@ -229,7 +229,7 @@ function createTraceID(now0) {
   return [`${s.substr(14, 2)}${s.substr(17, 2)}-${uuidv4()}`];
 }
 
-const publishQueue = [];
+// const publishQueue = [];
 
 function publishJSON(req, topic, obj) {
   //  Publish the object as a JSON message to the PubSub topic.
@@ -254,9 +254,12 @@ function publishJSON(req, topic, obj) {
 
     // eslint-disable-next-line no-param-reassign
     obj = removeNulls(obj, -100);
-    return topic.publisher().publish(new Buffer(stringify(obj)))
+    const buf = new Buffer(JSON.stringify(obj));
+    const size = buf.length;
+    // return topic.publisher().publish(new Buffer(stringify(obj)))
+    return topic.publisher().publish(buf)
       .catch((error) => { // eslint-disable-next-line no-use-before-define
-        console.error('publishJSON2', { message: error.message, stack: error.stack, topic, obj: stringify(obj, null, 2) });
+        console.error('publishJSON3', { message: error.message, stack: error.stack, topic, size, buf: buf.toString() });
         return error;
       });
   } catch (error) {
@@ -374,8 +377,9 @@ function scheduleLog(req, loggingLog0) {
 
 function flushLog(req) {
   //  We are about to quit.  Write all log items.
-  return Promise.all(publishQueue).catch(dumpError)
-    .then(() => writeLog(req, null, true)).catch(dumpError);
+  /* return Promise.all(publishQueue).catch(dumpError)
+    .then(() => writeLog(req, null, true)).catch(dumpError); */
+  return writeLog(req, null, true).catch(dumpError);
 }
 
 function getMetadata(para, now, operation) {
