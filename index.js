@@ -244,6 +244,7 @@ function publishJSON(req, topic, obj) {
   });
   return Promise.resolve(null); */
 
+  /*
   const buf = new Buffer(stringify(obj));
   const size = buf.length;
   publishQueue.push(
@@ -254,12 +255,13 @@ function publishJSON(req, topic, obj) {
       .catch((error) => { log(req, 'publishJSON', { error, size }); return error; })); //  Supress error.
 
   return Promise.resolve(obj);
+  */
 
-  /* return topic.publisher().publish(new Buffer(stringify(obj)))
+  return topic.publisher().publish(new Buffer(stringify(obj)))
     .catch((error) => { // eslint-disable-next-line no-use-before-define
       log(req, 'publishJSON', { error, topic, obj });
       throw error;
-    }); */
+    });
 }
 
 function logQueue(req, action, para0, logQueueConfig0) { /* eslint-disable global-require, no-param-reassign */
