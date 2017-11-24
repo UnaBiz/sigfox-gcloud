@@ -213,8 +213,8 @@ function createChildSpan(req, name0, labels) {
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Logging Functions: Log to Google Cloud Logging, Error Reporting and PubSub
 
-//  Write log records in batches by 5 records normally, max 10 records when flushing.
-const batchSize = flush => (flush ? 5 : 10);
+//  Write log records in batches by 5 records normally, max 10000 records when flushing.
+const batchSize = flush => (flush ? 10000 : 5);
 const logTasks = [];  //  List of logging tasks to be completed.  They return a log entry.
 // eslint-disable-next-line no-unused-vars
 let taskCount = 0;  //  Number of logging tasks completed so far.
