@@ -60,11 +60,11 @@ function saveMessage(req, device, type, body, rootTraceId) {
   //  Where does type come from?  It's specified in the callback URL
   //  e.g. https://myproject.appspot.com?type=gps
   sgcloud.log(req, 'saveMessage', { device, type, body, rootTraceId });
-  const queues = [
-    { device },  //  sigfox.devices.<deviceID> (the device specific queue)
-    { device: 'all' },  //  sigfox.devices.all (the queue for all devices)
-  ];
+  sgcloud.log(req, 'saveMessage', { device, type, body, rootTraceId });
+  const queues = [{ device: 'all' }];  //  sigfox.devices.all (the queue for all devices)
   if (type) queues.push({ type });  //  sigfox.types.<deviceType>
+  //  This queue may not exist and cause errors, so we send last.
+  if (device) queues.push({ device });  //  sigfox.devices.<deviceID> (the device specific queue)
   const query = req.query;
   //  Compose the message and record the history.
   const message0 = { device, type, body, query, rootTraceId };
