@@ -234,35 +234,15 @@ function publishJSON(req, topic, obj) {
   //  Publish the object as a JSON message to the PubSub topic.
   //  Returns a promise.
   try {
-    if (!topic || !obj) return Promise.resolve(null);
+    if (!topic || !obj) return Promise.resolve('missing_topic_obj');
     // eslint-disable-next-line no-param-reassign
     if (obj.type === null) delete obj.type;
-
-    /*
-    const buf = new Buffer(stringify(obj));
-    const size = buf.length;
-    publishQueue.push(
-      Promise.resolve('start') // eslint-disable-next-line no-use-before-define
-        .then(() => log(req, 'publishJSON', { obj, size }))
-        .then(() => topic.publisher().publish(buf)) // eslint-disable-next-line no-use-before-define
-        .then(() => log(req, 'publishJSON', { result: 'OK', size })) // eslint-disable-next-line no-use-before-define
-        .catch((error) => { log(req, 'publishJSON', { error, size }); return error; })); //  Supress error.
-
-    return Promise.resolve(obj);
-    */
-
     // eslint-disable-next-line no-param-reassign
     obj = removeNulls(obj, -100); // eslint-disable-next-line no-param-reassign
-    // if (obj.history) delete obj.history; // //
     const buf = new Buffer(JSON.stringify(obj));
     const size = buf.length;
-    // return topic.publisher().publish(new Buffer(stringify(obj)))
-    /*
-@Param {number} options.batching.maxMessages - The maximum number of messages
-to buffer before sending a payload.
-@Param {number} options.batching.maxMilliseconds - The maximum duration to
-wait before sending a payload.
-     */
+    // maxMessages - The maximum number of messages to buffer before sending a payload.
+    // maxMilliseconds - The maximum duration to wait before sending a payload.
     const options = {
       batching: {
         maxMessages: 0,
@@ -271,11 +251,11 @@ wait before sending a payload.
     };
     return topic.publisher(options).publish(buf)
       .catch((error) => { // eslint-disable-next-line no-use-before-define
-        console.error('publishJSON7', { message: error.message, stack: error.stack, topic, size, buf: buf.toString() });
+        console.error('publishJSON', error.message, error.stack, topic.name, size, buf.toString());
         return error;
       });
   } catch (error) {
-    console.error(error.message, error.stack);
+    console.error('publishJSON', error.message, error.stack);
     return Promise.resolve('OK');
   }
 }
@@ -285,7 +265,7 @@ function logQueue(req, action, para0, logQueueConfig0) { /* eslint-disable globa
   //  If specified, logQueueConfig will override the default log queues.
   //  TODO: Reuse the PubSub clients to write batches of records.
   try {
-    if (module.exports.logQueueConfig.length === 0) return Promise.resolve(null);
+    if (module.exports.logQueueConfig.length === 0) return Promise.resolve('nothing');
     const now = Date.now();
     if (!req) req = {};
     if (!para0) para0 = {};
@@ -357,9 +337,9 @@ function writeLog(req, loggingLog0, flush) {
     .then((res) => {
       //  Write the non-null records into Google Cloud.
       const entries = res.filter(x => (x !== null && x !== undefined));
-      if (entries.length === 0) return null;
+      if (entries.length === 0) return 'nothing';
       return loggingLog.write(entries)  //  .catch(dumpError);
-        .catch(error => console.error('writeLog', error.message, error.stack));
+        .catch(error => console.error('writeLog', error.message, error.stack, entries));
     })
     .then(() => {  //  If flushing, don't wait for the tick.
       if (flush) {
@@ -367,7 +347,7 @@ function writeLog(req, loggingLog0, flush) {
       }
       // eslint-disable-next-line no-use-before-define
       scheduleLog(req, loggingLog);  //  Wait for next tick before writing.
-      return null;
+      return 'OK';
     })
     .catch(dumpError);
 }
