@@ -600,7 +600,6 @@ function publishMessage(req, oldMessage, device, type) {
   //  message.  This is used for sending log messages to BigQuery via Google Cloud DataFlow.
   //  The caller must have called server/bigquery/validateLogSchema.
   //  Returns a promise for the PubSub publish result.
-  log(req, 'publishMessage', { device: oldMessage.device, type });
   const topicName0 = device
     ? `sigfox.devices.${device}`
     : type
@@ -610,6 +609,7 @@ function publishMessage(req, oldMessage, device, type) {
   const credentials = res.credentials;
   const topicName = res.topicName;
   const topic = getTopicByCredentials(req, credentials, topicName);
+  log(req, 'publishMessage', { device: oldMessage.device, type, topic: topic ? topic.name : null });
   let message = Object.assign({}, oldMessage,
     device ? { device: (device === 'all') ? oldMessage.device : device }
       : type ? { type }
