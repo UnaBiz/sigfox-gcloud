@@ -146,14 +146,15 @@ function task(req, device, body0, msg) {
     .then((newMessage) => { result = newMessage; return newMessage; })
     //  Wait for the downlink data if any.
     .then(() => getResponse(req, device, body0, msg))
-    .catch((error) => { throw error; })
+    .catch(sgcloud.dumpError)
+    //  Log the final result.
+    .then(() => sgcloud.log(req, 'result', { result, device, body }))
     //  Flush the log and wait for it to be completed.
-    .then(() => sgcloud.endTask(req)
-      .catch(sgcloud.dumpError))
+    //  After this point, don't use common.log since the log has been flushed.
+    .then(() => sgcloud.endTask(req).catch(sgcloud.dumpError))
     //  Return the response to Sigfox Cloud and terminate the Cloud Function.
     //  Sigfox needs HTTP code 204 to indicate downlink.
     .then(response => res.status(204).json(response).end())
-    //  After this point, don't use common.log since the log has been flushed.
     .then(() => result);
 }
 
@@ -193,6 +194,8 @@ exports.main = (req0, res) => {
   //  Wait for the task to complete then dispatch to next step.
   return task(req, device, body, oldMessage)
     //  At the point, don't use common.log since the log has been flushed.
+    //  The response has been closed so the Cloud Function will terminate soon.
+    //  Don't do any more processing here.
     .then((result) => { updatedMessage = result; })
     .catch(sgcloud.dumpError)
     //  Return the updated message.
