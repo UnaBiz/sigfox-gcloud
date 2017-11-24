@@ -228,8 +228,6 @@ function createTraceID(now0) {
   return [`${s.substr(14, 2)}${s.substr(17, 2)}-${uuidv4()}`];
 }
 
-// const publishQueue = [];
-
 function publishJSON(req, topic, obj) {
   //  Publish the object as a JSON message to the PubSub topic.
   //  Returns a promise.
@@ -338,8 +336,8 @@ function writeLog(req, loggingLog0, flush) {
       //  Write the non-null records into Google Cloud.
       const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return 'nothing';
-      return loggingLog.write(entries)  //  .catch(dumpError);
-        .catch(error => console.error('writeLog', error.message, error.stack, entries));
+      return loggingLog.write(entries)
+        .catch(error => console.error('writeLog', error.message, error.stack, JSON.stringify(entries, null, 2)));
     })
     .then(() => {  //  If flushing, don't wait for the tick.
       if (flush) {
