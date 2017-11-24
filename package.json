@@ -41,6 +41,14 @@
     "safe-buffer": "5.0.1",
     "uuid": "^3.1.0"
   },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "chai-as-promised": "^6.0.0",
+    "mockery": "^2.1.0",
+    "should": "^11.2.1",
+    "supertest": "^3.0.0",
+    "supertest-as-promised": "^4.0.2"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/UnaBiz/sigfox-gcloud.git"
