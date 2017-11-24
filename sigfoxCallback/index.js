@@ -151,7 +151,8 @@ function task(req, device, body0, msg) {
     .then(() => sgcloud.endTask(req)
       .catch(sgcloud.dumpError))
     //  Return the response to Sigfox Cloud and terminate the Cloud Function.
-    .then(response => res.status(200).json(response).end()
+    //  Sigfox needs HTTP code 204 to indicate downlink.
+    .then(response => res.status(204).json(response).end()
       .catch(sgcloud.dumpError))
     //  After this point, don't use common.log since the log has been flushed.
     .then(() => result);
