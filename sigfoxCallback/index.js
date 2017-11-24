@@ -146,10 +146,15 @@ function task(req, device, body0, msg) {
     .then((newMessage) => { result = newMessage; return newMessage; })
     //  Wait for the downlink data if any.
     .then(() => getResponse(req, device, body0, msg))
-    //  Return the response to Sigfox Cloud.
-    .then(response => res.status(200).json(response).end())
-    .then(() => result)
-    .catch((error) => { throw error; });
+    .catch((error) => { throw error; })
+    //  Flush the log and wait for it to be completed.
+    .then(() => sgcloud.endTask(req)
+      .catch(sgcloud.dumpError))
+    //  Return the response to Sigfox Cloud and terminate the Cloud Function.
+    .then(response => res.status(200).json(response).end()
+      .catch(sgcloud.dumpError))
+    //  After this point, don't use common.log since the log has been flushed.
+    .then(() => result);
 }
 
 exports.main = (req0, res) => {
@@ -186,16 +191,10 @@ exports.main = (req0, res) => {
 
   //  Now we run the task to publish the message to the 3 queues.
   //  Wait for the task to complete then dispatch to next step.
-  const runTask = task(req, device, body, oldMessage)
-    .then(result => sgcloud.log(req, 'result', { result, device, body, event, oldMessage }))
-    .then((result) => { updatedMessage = result; return result; })
-    .catch(error => sgcloud.log(req, 'error', { error, device, body, event, oldMessage }));
-  const dispatchTask = runTask
-    //  Dispatch will be skipped because isDispatched is set.
-    .then(() => sgcloud.dispatchMessage(req, updatedMessage, device))
-    .catch(error => sgcloud.log(req, 'error', { error, device, body, event, updatedMessage }));
-  return dispatchTask
-    //  Flush the log and wait for it to be completed.
-    .then(() => sgcloud.endTask(req))
+  return task(req, device, body, oldMessage)
+    //  At the point, don't use common.log since the log has been flushed.
+    .then((result) => { updatedMessage = result; })
+    .catch(sgcloud.dumpError)
+    //  Return the updated message.
     .then(() => updatedMessage);
 };
