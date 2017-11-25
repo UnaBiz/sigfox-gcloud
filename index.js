@@ -415,6 +415,7 @@ function deferLog(req, action, para0, record, now, operation, loggingLog0) { /* 
         const event = {};
         event[key] = para;
         const metadata = getMetadata(para, now, operation);
+        console.log('deferLog', key, JSON.stringify(event, null, 2), JSON.stringify(metadata, null, 2)); ////
         return loggingLog0.entry(metadata, event);
       })
       .catch(dumpNullError);
