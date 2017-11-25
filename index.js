@@ -540,7 +540,7 @@ function publishMessage(req, oldMessage, device, type) {
     : type
       ? `sigfox.types.${type}`
       : 'sigfox.received';
-  const res = module.exports.transformRoute(req, type, device, cloudCredentials, topicName0);
+  const res = module.exports.transformRoute(req, type, device, cloud.credentials, topicName0);
   const credentials = res.credentials;
   const projectId = (credentials && credentials.projectId)
     ? credentials.projectId : null;
