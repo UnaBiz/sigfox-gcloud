@@ -44,7 +44,7 @@ const package_json = /* eslint-disable quote-props,quotes,comma-dangle,indent */
     },
     "dependencies": {
       "dnscache": "^1.0.1",
-      "sigfox-aws": ">=1.0.2",
+      "sigfox-aws": ">=1.0.4",
       "uuid": "^3.1.0"
     }
   }
