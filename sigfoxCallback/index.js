@@ -20,9 +20,9 @@ const isAWS = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 process.on('uncaughtException', err => console.error('uncaughtException', err.message, err.stack));  //  Display uncaught exceptions.
 process.on('unhandledRejection', (reason, p) => console.error('unhandledRejection', reason, p));
 if (isGoogleCloud) {  //  Start agents for Google Cloud.
-  require('dnscache')({ enable: true });  //  Enable DNS cache in case we hit the DNS quota for Google Cloud Functions.
-  require('@google-cloud/trace-agent').start();  //  Must enable Google Cloud Tracing before other require()
-  require('@google-cloud/debug-agent').start();  //  Must enable Google Cloud Debug before other require()
+  if (!process.env.DISABLE_DNSCACHE) require('dnscache')({ enable: true });  //  Enable DNS cache in case we hit the DNS quota for Google Cloud Functions.
+  if (!process.env.DISABLE_TRACE) require('@google-cloud/trace-agent').start();  //  Must enable Google Cloud Tracing before other require()
+  if (!process.env.DISABLE_DEBUG) require('@google-cloud/debug-agent').start();  //  Must enable Google Cloud Debug before other require()
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
