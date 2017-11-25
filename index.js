@@ -770,23 +770,36 @@ module.exports = {
   functionName: cloud.functionName,
   sleep,
   removeNulls,
-  dumpError,
-  dumpNullError,
-  createTraceID,
-  startRootSpan,
+
+  //  Logging
   log,
   error: log,
   flushLog,
   logQueue,
+
+  //  Instrumentation
+  dumpError,
+  dumpNullError,
+  createTraceID,
+  startRootSpan,
+
+  //  Messaging
   publishJSON,
   publishMessage,
   updateMessageHistory,
   dispatchMessage,
+
+  //  Device State: device state functions for AWS.  Not implemented for Google Cloud yet.
+  createDevice: cloud.createDevice,
+  getDeviceState: cloud.getDeviceState,
+  updateDeviceState: cloud.updateDeviceState,
+
+  //  Startup
+  init: cloud.init,
   main,
   endTask,
 
-  //  Optional Config
-  //  Log to PubSub: Specify array of { projectId, topicName }
+  //  Optional Config - Log to PubSub: Specify array of { projectId, topicName }
   logQueueConfig: [],
   setLogQueue: (config) => { module.exports.logQueueConfig = config; },
 
@@ -794,11 +807,6 @@ module.exports = {
   transformRoute: (req, type, device, credentials, topicName) =>
     ({ credentials: Object.assign({}, credentials), topicName }),
   setRoute: (route) => { module.exports.transformRoute = route; },
-
-  //  AWS device state functions.  Not implemented for Google Cloud.
-  createDevice: cloud.createDevice,
-  getDeviceState: cloud.getDeviceState,
-  updateDeviceState: cloud.updateDeviceState,
 
   //  For unit test only.
   getRootSpan,
