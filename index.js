@@ -334,11 +334,9 @@ function scheduleLog(req, loggingLog0) {
 
 function flushLog(req) {
   //  We are about to quit.  Write all log items.
-  console.log('***writeLog start');
   return writeLog(req, null, true)
     .catch(dumpError)
-    .then(() => console.log('***writeLog end'))
-    ;
+    .then(() => console.log('flushLog'));
 }
 
 function getMetadata(para, now, operation) {
@@ -388,7 +386,7 @@ function deferLog(req, action, para0, record, now, operation, loggingLog0) { /* 
             json = stringify(val);
             record[key] = JSON.parse(json);
           } catch (err) {  /* eslint-disable no-console */
-            console.error({ deferLog: err.message, json });
+            console.error('deferLog', err.message, err.stack, json);
           } /* eslint-enable no-console */
         }
         //  Log the user properties.
@@ -411,7 +409,7 @@ function deferLog(req, action, para0, record, now, operation, loggingLog0) { /* 
         const event = {};
         event[key] = para;
         const metadata = getMetadata(para, now, operation);
-        console.log('deferLog2', key, JSON.stringify(event, null, 2), JSON.stringify(metadata, null, 2)); ////
+        // console.log('deferLog2', key, JSON.stringify(event, null, 2), JSON.stringify(metadata, null, 2)); ////
         return loggingLog0.entry(metadata, event);
       })
       .catch(dumpNullError);
