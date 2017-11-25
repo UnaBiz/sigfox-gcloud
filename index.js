@@ -205,15 +205,15 @@ function createTraceID(now0) {
   return [`${s.substr(14, 2)}${s.substr(17, 2)}-${uuidv4()}`];
 }
 
-function publishJSON(req, topic, obj) {
+function publishJSON(req, topic, obj0) {
   //  Publish the object as a JSON message to the PubSub topic.
   //  Returns a promise.
   try {
-    if (!topic || !obj) return Promise.resolve('missing_topic_obj');
+    if (!topic || !obj0) return Promise.resolve('missing_topic_obj');
     // eslint-disable-next-line no-param-reassign
-    if (obj.type === null) delete obj.type;
-    // eslint-disable-next-line no-param-reassign
-    obj = removeNulls(obj); // eslint-disable-next-line no-param-reassign
+    if (obj0.type === null) delete obj0.type;
+    const obj = removeNulls(obj0);
+    console.log('publishJSON', topic.name, JSON.stringify(obj, null, 2));
     const buf = new Buffer(stringify(obj));
     const size = buf.length;
     return topic.publisher().publish(buf)
