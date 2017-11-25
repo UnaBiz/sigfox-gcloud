@@ -293,7 +293,7 @@ function writeLog(req, loggingLog0, flush) {
     const task = logTasks.shift();
     if (!task) break;
     //  Add the task to the batch.
-    batch.push(task(cloud.loggingLog).catch(dumpNullError));
+    batch.push(task(cloud.getLogger()).catch(dumpNullError));
     taskCount += 1;
   }
   // console.log(`______ ${taskCount} / ${batch.length} / ${logTasks.length}`);
@@ -303,15 +303,15 @@ function writeLog(req, loggingLog0, flush) {
       //  Write the non-null records.
       const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return 'nothing';
-      return cloud.loggingLog.write(entries)
+      return cloud.getLogger().write(entries)
         .catch(error => console.error('writeLog', error.message, error.stack, JSON.stringify(entries, null, 2)));
     })
     .then(() => {  //  If flushing, don't wait for the tick.
       if (flush) {
-        return writeLog(req, cloud.loggingLog, flush).catch(dumpError);
+        return writeLog(req, cloud.getLogger(), flush).catch(dumpError);
       }
       // eslint-disable-next-line no-use-before-define
-      scheduleLog(req, cloud.loggingLog);  //  Wait for next tick before writing.
+      scheduleLog(req, cloud.getLogger());  //  Wait for next tick before writing.
       return 'OK';
     })
     .catch(dumpError);
@@ -326,7 +326,7 @@ function scheduleLog(req, loggingLog0) {
   //  const loggingLog = loggingLog0;
   process.nextTick(() => {
     try {
-      writeLog(req, cloud.loggingLog)
+      writeLog(req, cloud.getLogger())
         .catch(dumpError);
     } catch (err) { dumpError(err); }
   });
@@ -335,6 +335,9 @@ function scheduleLog(req, loggingLog0) {
 function flushLog(req) {
   //  We are about to quit.  Write all log items.
   return writeLog(req, null, true)
+    .catch(dumpError)
+    //  Tell the cloud to close any logging connections.
+    .then(() => cloud.shutdown(req))
     .catch(dumpError)
     .then(() => console.log('flushLog'));
 }
@@ -493,8 +496,8 @@ function log(req0, action, para0) {
     //  Create the log operation.
     const operation = getOperation(req, action, para);
     if (process.env.LOG_FOREGROUND) {  //  For debugging, log in foreground.
-      deferLog(req, action, para, record, now, operation, cloud.loggingLog)
-        .then(entry => cloud.loggingLog.write(entry))  // .catch(dumpError);
+      deferLog(req, action, para, record, now, operation, cloud.getLogger())
+        .then(entry => cloud.getLogger().write(entry))  // .catch(dumpError);
         .catch(error => console.error('log', error.message, error.stack));
       return err || para.result || null;
     }
