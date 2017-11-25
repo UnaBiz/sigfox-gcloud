@@ -213,18 +213,10 @@ function publishJSON(req, topic, obj) {
     // eslint-disable-next-line no-param-reassign
     if (obj.type === null) delete obj.type;
     // eslint-disable-next-line no-param-reassign
-    obj = removeNulls(obj, -100); // eslint-disable-next-line no-param-reassign
-    const buf = new Buffer(JSON.stringify(obj));
+    obj = removeNulls(obj); // eslint-disable-next-line no-param-reassign
+    const buf = new Buffer(stringify(obj));
     const size = buf.length;
-    // maxMessages - The maximum number of messages to buffer before sending a payload.
-    // maxMilliseconds - The maximum duration to wait before sending a payload.
-    const options = {
-      batching: {
-        maxMessages: 0,
-        maxMilliseconds: 0,
-      },
-    };
-    return topic.publisher(options).publish(buf)
+    return topic.publisher().publish(buf)
       .catch((error) => { // eslint-disable-next-line no-use-before-define
         console.error('publishJSON', error.message, error.stack, topic.name, size, buf.toString());
         return error;
