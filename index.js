@@ -5,22 +5,45 @@
 
 //  region Declarations
 /* eslint-disable camelcase, no-console, no-nested-ternary, global-require, import/no-unresolved, max-len */
-//  Helper constants to detect if we are running on Google Cloud or AWS.
-const isGoogleCloud = !!process.env.FUNCTION_NAME || !!process.env.GAE_SERVICE;
-const isAWS = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+//  This is needed because Node.js doesn't cache DNS lookups and will cause DNS quota to be exceeded
+//  in Google Cloud.
+require('dnscache')({ enable: true });
+
+//  If the file .env exists in the current folder, use it to populate
+//  the environment variables e.g. GCLOUD_PROJECT=myproject
+require('dotenv').load();
+
+//  Don't require any other Google Cloud modules in global scope
+//  because the connections may expire when running for a long time
+//  in Google Cloud Functions.
+
+//  Environment variable GCLOUD_PROJECT must be set to your Google Cloud
+//  project ID e.g. export GCLOUD_PROJECT=myproject
+const projectId = process.env.GCLOUD_PROJECT;    //  Google Cloud project ID.
+const functionName = process.env.FUNCTION_NAME || 'unknown_function';
+const isCloudFunc = !!process.env.FUNCTION_NAME || !!process.env.GAE_SERVICE;  //  True if running in Google Cloud.
 const isProduction = (process.env.NODE_ENV === 'production');  //  True on production server.
-
-const cloud = //  Load Google Cloud and AWS-specific functions. Must be loaded before other libraries.
-  isGoogleCloud ? require('./lib/gcloud') :
-  isAWS ? require('./lib/aws') :
-  (() => { throw new Error('Cloud configuration missing'); })();
-
-//  Next load the other libraries.
 const util = require('util');
+const path = require('path');
 const uuidv4 = require('uuid/v4');
 const stringify = require('json-stringify-safe');
+const tracing = require('gcloud-trace')();
+const tracingtrace = require('gcloud-trace/src/trace');
 
+//  Assume that the Google Service Account credentials are present in this file.
+//  This is needed for calling Google Cloud PubSub, Logging, Trace, Debug APIs
+//  on Linux / MacOS / Ubuntu on Windows.  Assume it's in the main folder for the app.
+const keyFilename = path.join(process.cwd(), 'google-credentials.json');
+//  If we are running in the Google Cloud, no credentials necessary.
+const googleCredentials = isCloudFunc ? null : { projectId, keyFilename };
+const logName = process.env.LOGNAME || 'sigfox-gcloud';  //  Name of the log to write to.
 const logKeyLength = process.env.LOGKEYLENGTH ? parseInt(process.env.LOGKEYLENGTH, 10) : 40;  //  Width of the left column in logs
+const loggingLog = require('@google-cloud/logging')(googleCredentials) //  Mark circular refs by [Circular]
+  .log(logName, { removeCircular: true });
+
+//  We cache Google PubSub connections by credentials (to support cross-project messaging) and topic names.
+// const pubsubByCredentials = {};  //  Maps a Google Credential JSON key to a Google PubSub connection for those credentials
+// const topicByCredentials = {};  //  Maps a Google Credential JSON + topic key to a Google PubSub topic.
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Utility Functions
@@ -78,7 +101,7 @@ function removeNulls(obj, level) {
 function dumpError(error, action, para) {
   //  Dump the error to the console and suppress the error.  Return the error.
   //  Action and para are optional.
-  console.error(action || '', error.message, error.stack, stringify(para || '', null, 2));
+  console.error(action || '', error.message, error.stack, para || '');
   return error;
 }
 
@@ -90,7 +113,7 @@ function dumpNullError(error, action, para) {
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region Instrumentation Functions: Trace the execution of this Sigfox Callback across multiple Cloud Functions via Google Cloud Tracing or AWS X-Ray
+//  region Instrumentation Functions: Trace the execution of this Sigfox Callback across multiple Cloud Functions
 
 function getSpanName(req) {
   //  Return a span name based on the device ID, sequence number and basestationTime:
@@ -103,10 +126,10 @@ function getSpanName(req) {
       ? body.device.toUpperCase()
       : 'missing_device';
   const seqNumber = (req.seqNumber !== null && req.seqNumber !== undefined)
-  ? req.seqNumber
-  : (body.seqNumber !== null && body.seqNumber !== undefined)
-    ? body.seqNumber
-    : 'missing_seqNumber';
+    ? req.seqNumber
+    : (body.seqNumber !== null && body.seqNumber !== undefined)
+      ? body.seqNumber
+      : 'missing_seqNumber';
   return [device, seqNumber].join(' seq:');
 }
 
@@ -117,7 +140,7 @@ function startRootSpan(req, rootTrace0) {
   //  https://github.com/zbjornson/gcloud-trace/blob/master/src/index.js
   //  Create the root trace.
   const labels = {};
-  const rootTrace = rootTrace0 || cloud.startTrace(req);
+  const rootTrace = rootTrace0 || tracing.startTrace();
   //  Start the span.
   const rootSpanName = getSpanName(req);
   const rootSpan = rootTrace.startSpan(rootSpanName, labels);
@@ -145,8 +168,8 @@ function getRootSpan(req, rootTraceId0) {
         rootTracePromise: Promise.resolve(null),
         rootSpanPromise: Promise.resolve(null),
       };
-    }
-    const rootTrace = cloud.createRootTrace(req, rootTraceId);
+    } // eslint-disable-next-line new-cap
+    const rootTrace = new tracingtrace(tracing, rootTraceId);
     //  Randomly assign the starting span ID.  Must not clash with previously assigned span ID
     //  for this trace ID.
     //  eslint-disable-next-line no-underscore-dangle
@@ -176,7 +199,7 @@ function endRootSpan(req) {
 function createChildSpan(req, name0, labels) {
   //  Create a child span to trace a task in this module.  Returns a promise.
   const name = [
-    cloud.functionName,
+    functionName,
     (name0 || 'missing_name').split('/').join(' / '),
   ].join(' / ');
   return getRootSpan(req).rootSpanPromise
@@ -188,7 +211,7 @@ function createChildSpan(req, name0, labels) {
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region Logging Functions: Log to Google Cloud Logging, Error Reporting and PubSub or AWS CloudWatch
+//  region Logging Functions: Log to Google Cloud Logging, Error Reporting and PubSub
 
 //  Write log records in batches by 5 records normally, max 10000 records when flushing.
 const batchSize = flush => (flush ? 10000 : 5);
@@ -262,13 +285,15 @@ function logQueue(req, action, para0, logQueueConfig0) { /* eslint-disable globa
     const para = removeNulls(para0);
 
     //  Write the log to pubsub queues.  Each config contains { projectId, topicName }
-    // eslint-disable-next-line no-unused-vars
-    const msg = { timestamp: now, starttime, traceid, userid, companyid, token, action, para }; // eslint-disable-next-line prefer-const
+    const msg = { timestamp: now, starttime, traceid, userid, companyid, token, action, para };
     let promises = Promise.resolve('start');
     const result = [];
     const logQueueConfig = logQueueConfig0 || module.exports.logQueueConfig;
     logQueueConfig.forEach((config) => {
-      const topic = cloud.getQueue(req, config.projectId, config.topicName);
+      //  Create pubsub client upon use to prevent expired connection.
+      const credentials = Object.assign({}, googleCredentials,
+        { projectId: config.projectId });  // eslint-disable-next-line no-use-before-define
+      const topic = getTopicByCredentials(req, credentials, config.topicName);
       promises = promises
         .then(() => publishJSON(req, topic, msg))
         //  Suppress any errors so logging can continue.
@@ -301,25 +326,25 @@ function writeLog(req, loggingLog0, flush) {
     const task = logTasks.shift();
     if (!task) break;
     //  Add the task to the batch.
-    batch.push(task(cloud.loggingLog).catch(dumpNullError));
+    batch.push(task(loggingLog).catch(dumpNullError));
     taskCount += 1;
   }
   // console.log(`______ ${taskCount} / ${batch.length} / ${logTasks.length}`);
   //  Wait for the batch to finish.
   return Promise.all(batch)
     .then((res) => {
-      //  Write the non-null records.
+      //  Write the non-null records into Google Cloud.
       const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return 'nothing';
-      return cloud.loggingLog.write(entries)
+      return loggingLog.write(entries)
         .catch(error => console.error('writeLog', error.message, error.stack, JSON.stringify(entries, null, 2)));
     })
     .then(() => {  //  If flushing, don't wait for the tick.
       if (flush) {
-        return writeLog(req, cloud.loggingLog, flush).catch(dumpError);
+        return writeLog(req, loggingLog, flush).catch(dumpError);
       }
       // eslint-disable-next-line no-use-before-define
-      scheduleLog(req, cloud.loggingLog);  //  Wait for next tick before writing.
+      scheduleLog(req, loggingLog);  //  Wait for next tick before writing.
       return 'OK';
     })
     .catch(dumpError);
@@ -334,7 +359,7 @@ function scheduleLog(req, loggingLog0) {
   //  const loggingLog = loggingLog0;
   process.nextTick(() => {
     try {
-      writeLog(req, cloud.loggingLog)
+      writeLog(req, loggingLog)
         .catch(dumpError);
     } catch (err) { dumpError(err); }
   });
@@ -342,11 +367,13 @@ function scheduleLog(req, loggingLog0) {
 
 function flushLog(req) {
   //  We are about to quit.  Write all log items.
+  /* return Promise.all(publishQueue).catch(dumpError)
+    .then(() => writeLog(req, null, true)).catch(dumpError); */
   return writeLog(req, null, true).catch(dumpError);
 }
 
 function getMetadata(para, now, operation) {
-  //  Return the mandatory metadata for Cloud Logging.
+  //  Return the mandatory metadata for Google Cloud Logging.
   const level = para.err ? 'ERROR' : 'DEBUG';
   const timestamp = new Date(now);
   const resource = process.env.GAE_SERVICE
@@ -358,7 +385,7 @@ function getMetadata(para, now, operation) {
         version_id: process.env.GAE_VERSION,
       } }
     //  For Google Cloud Functions.
-    : { type: 'cloud_function', labels: { function_name: cloud.functionName } };
+    : { type: 'cloud_function', labels: { function_name: functionName } };
   const metadata = {
     timestamp,
     severity: level.toUpperCase(),
@@ -369,11 +396,11 @@ function getMetadata(para, now, operation) {
 }
 
 function deferLog(req, action, para0, record, now, operation, loggingLog0) { /* eslint-disable no-param-reassign */
-  //  Write the action and parameters to Cloud Logging for normal log,
-  //  or to Cloud Error Reporting if para contains error.
-  //  loggingLog contains the Cloud logger.  Returns a promise.
+  //  Write the action and parameters to Google Cloud Logging for normal log,
+  //  or to Google Cloud Error Reporting if para contains error.
+  //  loggingLog contains the Google Cloud logger.  Returns a promise.
   try {
-    //  Don't log any null values, causes Log errors.
+    //  Don't log any null values, causes Google Log errors.
     const para = removeNulls(para0 || {});
     //  Log to PubSub for easier analysis.
     return logQueue(req, action, para)
@@ -399,13 +426,13 @@ function deferLog(req, action, para0, record, now, operation, loggingLog0) { /* 
         if (req.user) {
           record.user = { email: req.user.email || req.user.emails || req.user };
         }
-        record.source = cloud.sourceName;
+        record.source = process.env.GAE_SERVICE || process.env.FUNCTION_NAME || logName;
         if (!isProduction || process.env.CIRCLECI) {  //  Log to console in dev.
           const out = [action, util.inspect(record, { colors: true })].join(' | ');
           if (para.err) console.error(out);
           else console.log(out);
         }
-        //  Else log to Cloud Logging.
+        //  Else log to Google Cloud Logging.
         const direction =
           (para && para.result) ? '<<'    //  Call has completed
             : (action === 'start') ? '>>' //  Call has started
@@ -424,7 +451,7 @@ function deferLog(req, action, para0, record, now, operation, loggingLog0) { /* 
 } /* eslint-enable no-param-reassign */
 
 function getOperation(req, action, para) {
-  //  Return the operation object for Cloud Logging.
+  //  Return the operation object for Google Cloud Logging.
   //  If para contains an error or result, end the child span.
   //  Else create the child span if this is the first time.
   const operationid = [
@@ -462,11 +489,11 @@ function getOperation(req, action, para) {
 
 /* eslint-disable no-underscore-dangle, import/newline-after-import, no-param-reassign */
 function log(req0, action, para0) {
-  //  Write the action and parameters to Cloud Logging for normal log,
-  //  or to Cloud Error Reporting if para contains error.
+  //  Write the action and parameters to Google Cloud Logging for normal log,
+  //  or to Google Cloud Error Reporting if para contains error.
   //  Returns the error, if it exists, or the result, else null.
   //  req contains the Express or PubSub request info.
-  //  Don't log any null values, causes Cloud Logging errors.
+  //  Don't log any null values, causes Google Cloud Logging errors.
   try {
     const now = Date.now();
     const req = req0 || {};
@@ -480,7 +507,10 @@ function log(req0, action, para0) {
     if (err) dumpError(err, action, para);
     if (err && isProduction) {
       try {
-        cloud.reportError(req, err, action, para);
+        //  Report the error to the Stackdriver Error Reporting API
+        const errorReport = require('@google-cloud/error-reporting')({ reportUnhandledRejections: true });
+
+        errorReport.report(err);
       } catch (err2) { dumpError(err2); }
     }
     const record = { timestamp: `${now}`, action };
@@ -498,8 +528,8 @@ function log(req0, action, para0) {
     //  Create the log operation.
     const operation = getOperation(req, action, para);
     if (process.env.LOG_FOREGROUND) {  //  For debugging, log in foreground.
-      deferLog(req, action, para, record, now, operation, cloud.loggingLog)
-        .then(entry => cloud.loggingLog.write(entry))  // .catch(dumpError);
+      deferLog(req, action, para, record, now, operation, loggingLog)
+        .then(entry => loggingLog.write(entry))  // .catch(dumpError);
         .catch(error => console.error('log', error.message, error.stack));
       return err || para.result || null;
     }
@@ -517,7 +547,7 @@ function log(req0, action, para0) {
 } /* eslint-enable no-param-reassign, global-require */
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region Messaging Functions: Dispatch messages between Cloud Functions via Google Cloud PubSub or AWS IoT MQTT Queues
+//  region Messaging Functions: Dispatch messages between Cloud Functions via PubSub
 
 function isProcessedMessage(/* req, message */) {
   //  Return true if this message is being or has been processed recently by this server
@@ -526,11 +556,46 @@ function isProcessedMessage(/* req, message */) {
   return Promise.resolve(false);  //  TODO
 }
 
+function getPubSubByCredentials(req, credentials) {
+  //  Given the Google Credentials, return the cached PubSub connection.  Allows conecting
+  //  to other project IDs.
+  //  eslint-disable-next-line global-require
+  const pubsub = require('@google-cloud/pubsub');
+  return pubsub(credentials);
+  /*
+  const credentialsKey = stringify(credentials);
+  if (!pubsubByCredentials[credentialsKey]) {
+    pubsubByCredentials[credentialsKey] = pubsub(credentials);
+  }
+  return pubsubByCredentials[credentialsKey];
+  */
+}
+
+function getTopicByCredentials(req, credentials, topicName) {
+  //  Given the Google Credentials and topic name, return the cached PubSub topic.  Allows conecting
+  //  to other project IDs and topics.
+  // const credentialsKey = stringify(credentials);
+  // const topicKey = [credentialsKey, topicName].join('|');
+  const pubsubWithCredentials = getPubSubByCredentials(req, credentials);
+  const topic = pubsubWithCredentials.topic(topicName);
+  return topic;
+
+  /*
+  log(req, 'getTopicByCredentials', { credentials, topicName, credentialsKey });
+  if (!topicByCredentials[topicKey]) {
+    const pubsubWithCredentials = getPubSubByCredentials(req, credentials);
+    const topic = pubsubWithCredentials.topic(topicName);
+    topicByCredentials[topicKey] = topic;
+  }
+  log(req, 'getTopicByCredentials', { result: 'OK', credentials, topicName, credentialsKey });
+  return topicByCredentials[topicKey];
+  */
+}
+
 function publishMessage(req, oldMessage, device, type) {
   //  Publish the message to the device or message type queue in PubSub.
   //  If device is non-null, publish to sigfox.devices.<<device>>
   //  If type is non-null, publish to sigfox.types.<<type>>
-  //  If device and type are both null, publish to sigfox.received.
   //  If message contains options.unpackBody=true, then send message.body as the root of the
   //  message.  This is used for sending log messages to BigQuery via Google Cloud DataFlow.
   //  The caller must have called server/bigquery/validateLogSchema.
@@ -539,58 +604,30 @@ function publishMessage(req, oldMessage, device, type) {
     ? `sigfox.devices.${device}`
     : type
       ? `sigfox.types.${type}`
-      : 'sigfox.received';
-  const res = module.exports.transformRoute(req, type, device, cloudCredentials, topicName0);
+      : 'sigfox.devices.missing_device';
+  const res = module.exports.transformRoute(req, type, device, googleCredentials, topicName0);
   const credentials = res.credentials;
-  const projectId = (credentials && credentials.projectId)
-    ? credentials.projectId : null;
   const topicName = res.topicName;
-  const topic = cloud.getQueue(req, projectId, topicName);
+  const topic = getTopicByCredentials(req, credentials, topicName);
   log(req, 'publishMessage', { device: oldMessage.device, type, topic: topic ? topic.name : null });
   let message = Object.assign({}, oldMessage,
     device ? { device: (device === 'all') ? oldMessage.device : device }
       : type ? { type }
-      : { device: oldMessage.device });
+      : { device: 'missing_device' });
   if (device === 'all') message.device = oldMessage.device;
-
-  //  If no more routing, unpack the message for easier rule writing.
-  let endOfRoute = false;
-  if (isAWS) {
-    //  TODO: AWS now unpacks the message at end of route.  To harmonise with Google Cloud.
-    if (message.route && message.route.length === 0) {
-      message.options = Object.assign({}, message.options, { unpackBody: true });
-      endOfRoute = true;
-    }
-  }
 
   //  If message contains options.unpackBody=true, then send message.body as the root of the
   //  message.  This is used for sending log messages to BigQuery via Google Cloud DataFlow.
   //  The caller must have called server/bigquery/validateLogSchema.
   if (message.options && message.options.unpackBody) {
-    //  The original content goes into "metadata" field.
-    const metadata = message;
     message = message.body;
-    delete metadata.body;
-    message.metadata = metadata;
   }
   const pid = credentials.projectId || '';
   const destination = topicName;
-  //  If you get an error here because the queue doesn't exist, it may be OK.
-  //  sigfox.devices.all should always exist, but sigfox.devices.<<device>> and
-  //  sigfox.types.<<type>> don't have to exist unless you need them for custom processing.
   return publishJSON(req, topic, message)
     .then((result) => {
       log(req, 'publishMessage', { result, destination, topicName, message, device: oldMessage.device, type, projectId: pid });
-      if (!endOfRoute) return result;
-
-      //  If no more routing, save the unpacked message as AWS Thing State.
-      return cloud.createDevice(req, oldMessage.device)
-        .then(() => cloud.updateDeviceState(req, oldMessage.device, message))
-        .then(() => result)
-        .catch((error) => {
-          log(req, 'publishMessage', { error, destination, topicName, message, device: oldMessage.device, type });
-          return result;  //  Suppress the error.
-        });
+      return result;
     })
     .catch((error) => {
       log(req, 'publishMessage', { error, destination, topicName, message, device: oldMessage.device, type, projectId: pid });
@@ -626,7 +663,7 @@ function updateMessageHistory(req, oldMessage) {
     duration,
     latency,
     source,
-    function: cloud.functionName,
+    function: functionName,
   };
   message.history.push(rec);
   return message;
@@ -655,20 +692,11 @@ function dispatchMessage(req, oldMessage, device) {
   //  const type = msg.route.shift();
   message.type = message.route[0];
   message.route = message.route.slice(1);
-  let dev = null;
-  let type = message.type;
-  if (isAWS) {
-    //  TODO: Harmonise the routing logic between AWS and Google Cloud.
-    if (type === 'all') {
-      //  For AWS, send to sigfox.devices.deviceid when type=all.
-      type = null;
-      dev = device;
-    }
-  }
+  const type = message.type;
   const route = message.route;
   const destination = type;
   const result = message;
-  return publishMessage(req, message, dev, type)
+  return publishMessage(req, message, null, type)
     .then(res => log(req, 'dispatchMessage',
       { result, destination, res, route, message, device, type }))
     .catch(error => log(req, 'dispatchMessage',
@@ -696,11 +724,11 @@ function runTask(req, event, task, device, body, message) {
 }
 
 function endTask(req) {
-  //  Clean up before exiting by flushing the Cloud Log and Cloud Trace.
+  //  Clean up before exiting by flushing the Google Cloud Log and Google Cloud Trace.
   //  Don't throw any errors here because the logs have closed.
   //  Returns a promise.
   return Promise.all([
-    //  End the root span for Cloud Trace to write the trace.
+    //  End the root span for Google Cloud Trace to write the trace.
     endRootSpan(req).catch(dumpError),
     //  Flush the log and wait for it to be completed.
     flushLog(req).catch(dumpError),
@@ -713,8 +741,7 @@ function main(event, task) {
   //  by the caller to process the Sigfox message.  Then dispatch the next step of
   //  the route in the message, set by routeMessage.
   //  task should have the signature task(req, device, body, message).
-  //  For AWS, event is the message itself.
-  //  For Google Cloud, event contains
+  //  event contains
   //  { eventType: "providers/cloud.pubsub/eventTypes/topic.publish"
   //    resource: "projects/myproject/topics/sigfox.devices.all"
   //    timestamp: "2017-05-06T10:19:29.666Z"
@@ -722,8 +749,7 @@ function main(event, task) {
   //    eventId: "120816659675797" }
   const req = { starttime: Date.now(), event };  //  Record start time.
   //  Decode the base64 message.
-  const message = event.body ? event  //  AWS
-    : JSON.parse(Buffer.from(event.data.data, 'base64').toString());  //  Google Cloud
+  const message = JSON.parse(Buffer.from(event.data.data, 'base64').toString());
   const device = message ? message.device : null;
   const body = message ? message.body : null;
   const rootTraceId = message.rootTraceId || null;
@@ -733,8 +759,8 @@ function main(event, task) {
 
   //  Continue the root-level span (created in sigfoxCallback) to trace this request across Cloud Functions.
   getRootSpan(req, rootTraceId);
-  //  Write the first log record in Cloud Logging as "start".
-  log(req, 'start', { device, body, event, message });
+  //  Write the first log record in Google Cloud Logging as "start".
+  log(req, 'start', { device, body, event, message, googleCredentials });
 
   //  If the message is already processed by another server, skip it.
   return isProcessedMessage(req, message)
@@ -743,7 +769,7 @@ function main(event, task) {
         ? log(req, 'skip', { result: message, isProcessed, device, body, event, message })
         //  Else wait for the task to complete then dispatch the next step.
         : runTask(req, event, task, device, body, message)
-        //  Suppress all errors else Google or AWS will retry the message.
+        //  Suppress all errors else Google will retry the message.
           .catch(dumpError)
     ))
     //  Log the final result i.e. the dispatched message.
@@ -757,42 +783,27 @@ function main(event, task) {
 //  region Exports
 
 module.exports = {
-  isGoogleCloud,
-  isAWS,
-  projectId: cloud.projectId,
-  functionName: cloud.functionName,
+  projectId: process.env.GCLOUD_PROJECT,
+  functionName: process.env.FUNCTION_NAME || 'unknown_function',
   sleep,
   removeNulls,
-
-  //  Logging
-  log,
-  error: log,
-  flushLog,
-  logQueue,
-
-  //  Instrumentation
   dumpError,
   dumpNullError,
   createTraceID,
   startRootSpan,
-
-  //  Messaging
+  log,
+  error: log,
+  flushLog,
+  logQueue,
   publishJSON,
   publishMessage,
   updateMessageHistory,
   dispatchMessage,
-
-  //  Device State: device state functions for AWS.  Not implemented for Google Cloud yet.
-  createDevice: cloud.createDevice,
-  getDeviceState: cloud.getDeviceState,
-  updateDeviceState: cloud.updateDeviceState,
-
-  //  Startup
-  init: cloud.init,
   main,
   endTask,
 
-  //  Optional Config - Log to PubSub: Specify array of { projectId, topicName }
+  //  Optional Config
+  //  Log to PubSub: Specify array of { projectId, topicName }
   logQueueConfig: [],
   setLogQueue: (config) => { module.exports.logQueueConfig = config; },
 
