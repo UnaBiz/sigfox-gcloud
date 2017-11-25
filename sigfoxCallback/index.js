@@ -289,8 +289,8 @@ exports.main = isAWS ? ((event0, context0, callback0, wrap0) => {
   //  For future runs, just execute the wrapper function with the event, context, callback parameters.
   //  Returns a promise.
   if (event0.unittest || __filename.indexOf('/tmp') === 0) {
-    if (!wrapper) wrapper = wrap0(package_json);  //  Already installed or in unit test.
-    return wrapper.run.bind(wrapper)(event0, context0, callback0); }  //  Run the wrapper.
+    if (!wrapper.main) wrapper = wrap0(package_json);  //  Already installed or in unit test.
+    return wrapper.main.bind(wrapper)(event0, context0, callback0); }  //  Run the wrapper.
   const sourceCode = require('fs').readFileSync(__filename);
   if (!autoinstallPromise) autoinstallPromise = new Promise((resolve, reject) => {
     //  Copy autoinstall.js from GitHub to /tmp and load the module.
@@ -310,14 +310,14 @@ exports.main = isAWS ? ((event0, context0, callback0, wrap0) => {
   //  launch mode: HTTP Mode or PubSub Queue Mode.
   //  Google Cloud handles the callback differently when we ask for different number of parameters.
   : ((process.env.FUNCTION_TRIGGER_TYPE === 'HTTP_TRIGGER')
-  ? ((req0, res0) => //  HTTP request. Create a new wrapper if missing.
-    Object.assign(wrapper, wrapper ? {} : wrap())
-      .run.bind(wrapper)(req0, res0))  //  Run the HTTP wrapper.
-  : (event0 =>  //  PubSub or File request. Create a new wrapper if missing.
-    Object.assign(wrapper, wrapper ? {} : wrap())
-      .run.bind(wrapper)(event0, event0))  //  Run the PubSub wrapper.
+  ? ((req0, res0) => //  HTTP request. Create a new wrapper if empty.
+    Object.assign(wrapper, wrapper.main ? null : wrap())
+      .main.bind(wrapper)(req0, res0))  //  Run the HTTP wrapper.
+  : (event0 =>  //  PubSub or File request. Create a new wrapper if empty.
+    Object.assign(wrapper, wrapper.main ? null : wrap())
+      .main.bind(wrapper)(event0))  //  Run the PubSub wrapper.
 ); /* eslint-enable curly, brace-style, import/no-absolute-path, no-use-before-define */
-let wrapper = null;  //  The single reused wrapper instance for invoking the module functions.
+let wrapper = {};  //  The single reused wrapper instance (initially empty) for invoking the module functions.
 let autoinstallPromise = null;  //  Holds a cached autoinstall module for reuse.
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
