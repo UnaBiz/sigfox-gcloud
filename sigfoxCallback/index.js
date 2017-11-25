@@ -15,7 +15,7 @@
 //  Helper constants to detect if we are running on Google Cloud or AWS.
 const isGoogleCloud = !!process.env.FUNCTION_NAME || !!process.env.GAE_SERVICE;
 const isAWS = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
-const isProduction = (process.env.NODE_ENV === 'production');  //  True on production server.
+// const isProduction = (process.env.NODE_ENV === 'production');  //  True on production server.
 
 process.on('uncaughtException', err => console.error('uncaughtException', err.message, err.stack));  //  Display uncaught exceptions.
 process.on('unhandledRejection', (reason, p) => console.error('unhandledRejection', reason, p));
@@ -60,12 +60,6 @@ const package_json = /* eslint-disable quote-props,quotes,comma-dangle,indent */
 ; /* eslint-enable quote-props,quotes,comma-dangle,indent */
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region Google Cloud Startup
-
-//  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region AWS Lambda Startup
-
-//  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Portable Code for Google Cloud and AWS
 
 function wrap() {
@@ -104,24 +98,37 @@ function wrap() {
   }
 
   function saveMessage(req, device, type, body, rootTraceId) {
-    //  TODO: Save the message to sigfox.received queue.
-    //  Save the message to Google PubSub in 3 message queues:
+    //  Save the received message for processing by other modules.
+    //  TODO: The message saving logic is currently different for AWS and Google Cloud:
+    //
+    //  For AWS: Save the received message to sigfox.received queue.
+    //
+    //  For Google Cloud: Save the message to Google PubSub in 3 message queues:
     //  (1) sigfox.devices.all (the queue for all devices)
     //  (2) sigfox.devices.<deviceID> (the device specific queue)
     //  (3) sigfox.types.<deviceType> (the specific device type e.g. gps)
-    //  There may be another Google Cloud Function waiting on sigfox.devices.all
+    //
+    //  There may be another Cloud Function waiting on sigfox.received or sigfox.devices.all
     //  to process this message e.g. routeMessage.
-    //  Where does type come from?  It's specified in the callback URL
+    //  Where does device type come from?  It's specified in the callback URL
     //  e.g. https://myproject.appspot.com?type=gps
     scloud.log(req, 'saveMessage', { device, type, body, rootTraceId });
-    const queues = [{ device: 'all' }];  //  sigfox.devices.all (the queue for all devices)
-    if (type) queues.push({ type });  //  sigfox.types.<deviceType>
-    //  This queue may not exist and cause errors, so we send last.
-    if (device) queues.push({ device });  //  sigfox.devices.<deviceID> (the device specific queue)
+    const queues = [];
     const query = req.query;
     //  Compose the message and record the history.
     const message0 = { device, type, body, query, rootTraceId };
     const message = scloud.updateMessageHistory(req, message0, device);
+    if (isGoogleCloud) {
+      //  For Google Cloud: Send to 3 queues...
+      queues.push({ device: 'all' });  //  sigfox.devices.all (the queue for all devices)
+      if (type) queues.push({ type });  //  sigfox.types.<deviceType>
+      //  This queue may not exist and cause errors, so we send last.
+      if (device) queues.push({ device });  //  sigfox.devices.<deviceID> (the device specific queue)
+    } else if (isAWS) {
+      //  For AWS: Send to 1 queues - sigfox.received.
+      //  We will deliver to the above 3 queues after all the routes have run.
+      queues.push({ device: null, type: null });  //  (null,null) means "sigfox.received"
+    }
     //  Get a list of promises, one for each publish operation to each queue.
     const promises = [];
     for (const queue of queues) {
@@ -289,7 +296,7 @@ exports.main = isAWS ? (event0, context0, callback0, wrap0) => {
   //  For first run, install the dependencies specified in package_json and proceed to next step.
   //  For future runs, just execute the wrapper function with the event, context, callback parameters.
   //  Returns a promise.
-  if (isGoogleCloud || event0.unittest || __filename.indexOf('/tmp') === 0) {
+  if (event0.unittest || __filename.indexOf('/tmp') === 0) {
     if (!wrapper) wrapper = wrap0(package_json);  //  Already installed or in unit test.
     return wrapper.run.bind(wrapper)(event0, context0, callback0); }  //  Run the wrapper.
   const sourceCode = require('fs').readFileSync(__filename);
