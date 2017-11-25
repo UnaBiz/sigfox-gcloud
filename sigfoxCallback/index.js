@@ -282,7 +282,7 @@ function wrap() {
 //  region Standard Code for AutoInstall Startup Function.  Do not change.  https://github.com/UnaBiz/sigfox-aws/blob/master/autoinstall.js
 
 /* eslint-disable curly, brace-style, import/no-absolute-path, no-use-before-define */
-exports.main = isAWS ? (event0, context0, callback0, wrap0) => {
+exports.main = isAWS ? ((event0, context0, callback0, wrap0) => {
   //  exports.main is the AWS Lambda and Google Cloud Function startup function.
   //  When called by AWS, it loads the autoinstall script from GitHub to install any NPM dependencies.
   //  For first run, install the dependencies specified in package_json and proceed to next step.
@@ -305,16 +305,16 @@ exports.main = isAWS ? (event0, context0, callback0, wrap0) => {
   return autoinstallPromise
     .then(mod => mod.install(package_json, event0, context0, callback0, sourceCode))
     .catch((error) => { throw error; });
-} //  When exports.main is called by Google Cloud, we create
+})// When exports.main is called by Google Cloud, we create
   //  a wrapper and pass 1 or 2 parameters depending on the
   //  launch mode: HTTP Mode or PubSub Queue Mode.
   //  Google Cloud handles the callback differently when we ask for different number of parameters.
   : ((process.env.FUNCTION_TRIGGER_TYPE === 'HTTP_TRIGGER')
   ? ((req0, res0) => //  HTTP request. Create a new wrapper if missing.
-    Object.assign(wrapper, wrapper ? null : wrap())
+    Object.assign(wrapper, wrapper ? {} : wrap())
       .run.bind(wrapper)(req0, res0))  //  Run the HTTP wrapper.
   : (event0 =>  //  PubSub or File request. Create a new wrapper if missing.
-    Object.assign(wrapper, wrapper ? null : wrap())
+    Object.assign(wrapper, wrapper ? {} : wrap())
       .run.bind(wrapper)(event0, event0))  //  Run the PubSub wrapper.
 ); /* eslint-enable curly, brace-style, import/no-absolute-path, no-use-before-define */
 let wrapper = null;  //  The single reused wrapper instance for invoking the module functions.
