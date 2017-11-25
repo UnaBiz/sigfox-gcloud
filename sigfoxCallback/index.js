@@ -32,7 +32,7 @@ const package_json = /* eslint-disable quote-props,quotes,comma-dangle,indent */
 //  PASTE PACKAGE.JSON BELOW  //////////////////////////////////////////////////////////
   {
     "name": "sigfoxCallback",
-    "version": "0.0.1",
+    "version": "2.0.0",
     "author": {
       "name": "Lee Lup Yuen",
       "email": "ly.lee@unabiz.com",
@@ -40,20 +40,12 @@ const package_json = /* eslint-disable quote-props,quotes,comma-dangle,indent */
     },
     "license": "MIT",
     "engines": {
-      "node": ">=6.7.0"
+      "node": ">=7.8.0"
     },
     "dependencies": {
       "dnscache": "^1.0.1",
-      "dotenv": "^4.0.0",
-      "sigfox-aws": ">=0.0.34",
-      "safe-buffer": "5.0.1",
-      "node-fetch": "^1.6.3",
-      "json-stringify-safe": "^5.0.1",
+      "sigfox-aws": ">=2.0.0",
       "uuid": "^3.1.0"
-    },
-    "repository": {
-      "type": "git",
-      "url": "git+https://github.com/UnaBiz/sigfox-aws.git"
     }
   }
 //  PASTE PACKAGE.JSON ABOVE  //////////////////////////////////////////////////////////

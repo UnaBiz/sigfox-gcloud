@@ -1,6 +1,6 @@
 {
   "name": "sigfoxCallback",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "author": {
     "name": "Lee Lup Yuen",
     "email": "ly.lee@unabiz.com",
@@ -8,21 +8,13 @@
   },
   "license": "MIT",
   "engines": {
-    "node": ">=6.7.0"
+    "node": ">=7.8.0"
   },
   "dependencies": {
     "@google-cloud/debug-agent": "^2.1.3",
-    "@google-cloud/error-reporting": "^0.2.2",
-    "@google-cloud/logging": "^1.0.6",
-    "@google-cloud/pubsub": "^0.14.4",
     "@google-cloud/trace-agent": "^2.2.0",
     "dnscache": "^1.0.1",
-    "dotenv": "^4.0.0",
-    "googleapis": "^22.2.0",
-    "sigfox-gcloud": ">=1.0.2",
-    "safe-buffer": "5.0.1",
-    "node-fetch": "^1.6.3",
-    "json-stringify-safe": "^5.0.1",
+    "sigfox-gcloud": ">=2.0.0",
     "uuid": "^3.1.0"
   }
 }
