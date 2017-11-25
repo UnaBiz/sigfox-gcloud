@@ -62,6 +62,7 @@ function wrap() {
     isAWS ? require('sigfox-aws') :  //  sigfox-aws Framework
     null;
   const uuid = require('uuid');
+  let wrapCount = 0;
 
   function getResponse(req, device0, body /* , msg */) {
     //  Compose the callback response to Sigfox Cloud and return as a promise.
@@ -224,7 +225,7 @@ function wrap() {
     //  This function is exposed as a HTTP request to handle callbacks from
     //  Sigfox Cloud.  The Sigfox message is contained in the request.body.
     //  Get the type from URL e.g. https://myproject.appspot.com?type=gps
-
+    console.log({ wrapCount }); wrapCount += 1;  //  Count how many times the wrapper was reused.
     //  Google Cloud and AWS pass parameters differently.
     //  We send to the respective modules to decode.
     const para = scloud.init(para1, para2, para3);

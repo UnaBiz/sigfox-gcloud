@@ -342,7 +342,11 @@ function scheduleLog(req, loggingLog0) {
 
 function flushLog(req) {
   //  We are about to quit.  Write all log items.
-  return writeLog(req, null, true).catch(dumpError);
+  console.log('***writeLog start');
+  return writeLog(req, null, true)
+    .catch(dumpError)
+    .then(() => console.log('***writeLog end'))
+    ;
 }
 
 function getMetadata(para, now, operation) {
