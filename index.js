@@ -10,8 +10,7 @@ const isGoogleCloud = !!process.env.FUNCTION_NAME || !!process.env.GAE_SERVICE;
 const isAWS = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 const isProduction = (process.env.NODE_ENV === 'production');  //  True on production server.
 
-//  Load Google Cloud and AWS-specific functions. Must be loaded first.
-const cloud =
+const cloud = //  Load Google Cloud and AWS-specific functions. Must be loaded before other libraries.
   isGoogleCloud ? require('./lib/gcloud') :
   isAWS ? require('./lib/aws') :
   (() => { throw new Error('Cloud configuration missing'); })();
@@ -22,12 +21,6 @@ const uuidv4 = require('uuid/v4');
 const stringify = require('json-stringify-safe');
 
 const logKeyLength = process.env.LOGKEYLENGTH ? parseInt(process.env.LOGKEYLENGTH, 10) : 40;  //  Width of the left column in logs
-
-//  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region Google Cloud-Specific Functions
-
-//  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region AWS-Specific Functions
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Utility Functions
@@ -97,7 +90,7 @@ function dumpNullError(error, action, para) {
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region Instrumentation Functions: Trace the execution of this Sigfox Callback across multiple Cloud Functions
+//  region Instrumentation Functions: Trace the execution of this Sigfox Callback across multiple Cloud Functions via Google Cloud Tracing or AWS X-Ray
 
 function getSpanName(req) {
   //  Return a span name based on the device ID, sequence number and basestationTime:
