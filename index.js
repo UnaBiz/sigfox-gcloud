@@ -534,7 +534,6 @@ function isProcessedMessage(/* req, message */) {
 }
 
 function publishMessage(req, oldMessage, device, type) {
-  //  TODO: Publish to sigfox.received: If device and type are both null, publish to sigfox.received.
   //  Publish the message to the device or message type queue in PubSub.
   //  If device is non-null, publish to sigfox.devices.<<device>>
   //  If type is non-null, publish to sigfox.types.<<type>>
@@ -641,7 +640,6 @@ function updateMessageHistory(req, oldMessage) {
 }
 
 function dispatchMessage(req, oldMessage, device) {
-  //  TODO: Sync with AWS
   //  Dispatch the message to the next step in the route of the message.
   //  message contains { device, type, body, query, route }
   //  route looks like [ messagetype1, messagetype2, ... ]
@@ -664,11 +662,20 @@ function dispatchMessage(req, oldMessage, device) {
   //  const type = msg.route.shift();
   message.type = message.route[0];
   message.route = message.route.slice(1);
-  const type = message.type;
+  let dev = null;
+  let type = message.type;
+  if (isAWS) {
+    //  TODO: Harmonise the routing logic between AWS and Google Cloud.
+    if (type === 'all') {
+      //  For AWS, send to sigfox.devices.deviceid when type=all.
+      type = null;
+      dev = device;
+    }
+  }
   const route = message.route;
   const destination = type;
   const result = message;
-  return publishMessage(req, message, null, type)
+  return publishMessage(req, message, dev, type)
     .then(res => log(req, 'dispatchMessage',
       { result, destination, res, route, message, device, type }))
     .catch(error => log(req, 'dispatchMessage',
