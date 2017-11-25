@@ -124,7 +124,7 @@ function startRootSpan(req, rootTrace0) {
   //  https://github.com/zbjornson/gcloud-trace/blob/master/src/index.js
   //  Create the root trace.
   const labels = {};
-  const rootTrace = rootTrace0 || cloud.tracing.startTrace();
+  const rootTrace = rootTrace0 || cloud.startTrace(req);
   //  Start the span.
   const rootSpanName = getSpanName(req);
   const rootSpan = rootTrace.startSpan(rootSpanName, labels);
@@ -524,7 +524,7 @@ function log(req0, action, para0) {
 } /* eslint-enable no-param-reassign, global-require */
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region Messaging Functions: Dispatch messages between Cloud Functions via PubSub
+//  region Messaging Functions: Dispatch messages between Cloud Functions via Google Cloud PubSub or AWS IoT MQTT Queues
 
 function isProcessedMessage(/* req, message */) {
   //  Return true if this message is being or has been processed recently by this server
