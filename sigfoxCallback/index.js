@@ -288,7 +288,6 @@ function wrap(/* package_json */) {
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Standard Code for AutoInstall Startup Function.  Do not modify.  https://github.com/UnaBiz/sigfox-aws/blob/master/autoinstall.js
-
 /* eslint-disable camelcase,no-unused-vars,import/no-absolute-path,import/no-unresolved,no-use-before-define,global-require,max-len,no-tabs,brace-style */
 const wrapper = {};  //  The single reused wrapper instance (initially empty) for invoking the module functions.
 exports.main = isGoogleCloud ? require('sigfox-gcloud/lib/main').getMainFunction(wrapper, wrap, package_json)
@@ -302,7 +301,5 @@ exports.main = isGoogleCloud ? require('sigfox-gcloud/lib/main').getMainFunction
     if (require('fs').existsSync('/tmp/autoinstall.js')) return afterExec(null);  //  Already downloaded.
     const cmd = 'curl -s -S -o /tmp/autoinstall.js https://raw.githubusercontent.com/UnaBiz/sigfox-aws/master/autoinstall.js';
     const child = require('child_process').exec(cmd, { maxBuffer: 1024 * 500 }, afterExec);
-    child.stdout.on('data', console.log); child.stderr.on('data', console.error);
-    return null; };
-
+    child.stdout.on('data', console.log); child.stderr.on('data', console.error); return null; };
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
