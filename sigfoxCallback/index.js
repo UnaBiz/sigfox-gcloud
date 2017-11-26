@@ -1,3 +1,15 @@
+/* eslint-disable max-len, camelcase, no-console, no-nested-ternary, import/no-dynamic-require, import/newline-after-import, import/no-unresolved, global-require, max-len */
+//  //////////////////////////////////////////////////////////////////////////////////// endregion
+//  region AWS AutoInstall: List all dependencies here, or just paste the contents of package.json. Autoinstall will install these dependencies.
+const package_json = /* eslint-disable quote-props,quotes,comma-dangle,indent */
+//  PASTE PACKAGE.JSON BELOW  //////////////////////////////////////////////////////////
+    { "dependencies": {
+      "dnscache": "^1.0.1",
+      "sigfox-aws": ">=1.0.9",
+      "uuid": "^3.1.0" } }
+//  PASTE PACKAGE.JSON ABOVE  //////////////////////////////////////////////////////////
+; /* eslint-enable quote-props,quotes,comma-dangle,indent */
+
 //  Google Cloud Function sigfoxCallback is exposed as a HTTPS service
 //  that Sigfox Cloud will callback when delivering a Sigfox message.
 //  We insert the Sigfox message into Google PubSub message queues:
@@ -11,7 +23,6 @@
 //  This code is critical, all changes must be reviewed.  It must be
 //  kept as simple as possible to reduce the chance of failure.
 
-/* eslint-disable camelcase, no-console, no-nested-ternary, import/no-dynamic-require, import/newline-after-import, import/no-unresolved, global-require, max-len */
 //  Helper constants to detect if we are running on Google Cloud or AWS.
 const isGoogleCloud = !!process.env.FUNCTION_NAME || !!process.env.GAE_SERVICE;
 const isAWS = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -26,38 +37,12 @@ if (isGoogleCloud) {  //  Start agents for Google Cloud.
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region AWS AutoInstall: List all dependencies here, or just paste the contents of package.json. Autoinstall will install these dependencies.
-
-const package_json = /* eslint-disable quote-props,quotes,comma-dangle,indent */
-//  PASTE PACKAGE.JSON BELOW  //////////////////////////////////////////////////////////
-  {
-    "name": "sigfoxCallback",
-    "version": "1.0.0",
-    "author": {
-      "name": "Lee Lup Yuen",
-      "email": "ly.lee@unabiz.com",
-      "url": "http://github.com/unabiz/"
-    },
-    "license": "MIT",
-    "engines": {
-      "node": ">=7.8.0"
-    },
-    "dependencies": {
-      "dnscache": "^1.0.1",
-      "sigfox-aws": ">=1.0.4",
-      "uuid": "^3.1.0"
-    }
-  }
-//  PASTE PACKAGE.JSON ABOVE  //////////////////////////////////////////////////////////
-; /* eslint-enable quote-props,quotes,comma-dangle,indent */
-
-//  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Portable Code for Google Cloud and AWS
 
 function wrap(/* package_json */) {
   //  Wrap the module into a function so that all we defer loading of dependencies,
   //  and ensure that cloud resources are properly disposed.
-  const scloud =
+  const scloud = // eslint-disable-next-line import/no-extraneous-dependencies
     isGoogleCloud ? require('sigfox-gcloud') :  //  sigfox-gcloud Framework
     isAWS ? require('sigfox-aws') :  //  sigfox-aws Framework
     null;
@@ -186,38 +171,59 @@ function wrap(/* package_json */) {
     return body;
   } /* eslint-enable no-param-reassign */
 
+  function messageExpired(body) {
+    //  Return true if message is too old (5 mins or older).
+    //  Only check for AWS, not Google Cloud.
+    if (!isAWS) return false;
+    if (!body.baseStationTime) return false;
+    const baseStationTime = parseInt(body.baseStationTime, 10);
+    //  Compute time diff in minutes.
+    const age = (Date.now() - (baseStationTime * 1000.0)) / (60.0 * 1000);
+    if (age > 5.0) {
+      Object.assign(body, { age });
+      return true;
+    }
+    return false;
+  }
+
   function task(req, device, body0, msg) {
     //  Parse the Sigfox fields and send to the queues for device ID and device type.
     //  Then send the HTTP response back to Sigfox cloud.  If there is downlink data, wait for the response.
+    let result = msg;
+    let rejectMessage = false;  //  Set to true if we should reject the message.
+    let response = 'OK';  //  Response to Sigfox.
     const res = req.res;
     const type = msg.type;
     const rootTraceId = msg.rootTraceId;
     //  Convert the text fields into number and boolean values.
     const body = parseSIGFOXMessage(req, body0);
-    if (isAWS && body.baseStationTime) {
-      const baseStationTime = parseInt(body.baseStationTime, 10);
-      const age = Date.now() - (baseStationTime * 1000);
-      console.log({ baseStationTime });
-      if (age > 5 * 60 * 1000) {
-        //  If older than 5 mins, reject.
-        throw new Error(`too_old: ${age}`);
-      }
+    const seqNumber = body.seqNumber;
+    const localdatetime = body.localdatetime;
+    const baseStationTime = body.baseStationTime;
+    //  Only for AWS: Check whether message is too old. If older than 5 mins, reject. This helps to flush the queue of pending requests.
+    if (messageExpired(body)) {
+      rejectMessage = true;
+      const error = new Error(`Rejecting old message: ${body.age.toFixed(1)} mins diff`);
+      scloud.error(req, 'task', { error, device, seqNumber, localdatetime, baseStationTime });
     }
-    let result = null;
-    //  Send the Sigfox message to the queues.
-    return saveMessage(req, device, type, body, rootTraceId)
-      .then((newMessage) => { result = newMessage; return newMessage; })
+    //  If not rejected, send the Sigfox message to the queues.
+    return (rejectMessage
+      ? Promise.resolve(null)  //  Pass null to next step if rejected.
+      : saveMessage(req, device, type, body, rootTraceId).catch(scloud.dumpError))  // Else send the message.
+      //  Save the result if not null.
+      .then((newMessage) => { if (newMessage) result = newMessage; })
+      .catch(scloud.dumpError)
       //  Wait for the downlink data if any.
       .then(() => getResponse(req, device, body0, msg))
+      .then((resp) => { response = resp; })
       .catch(scloud.dumpError)
-      //  Log the final result.
+      //  Log the final result, then flush the log and wait for it to be deallocated.
+      //  After this point, don't use scloud.log since the log has been flushed.
       .then(() => scloud.log(req, 'result', { result, device, body }))
-      //  Flush the log and wait for it to be completed.
-      //  After this point, don't use common.log since the log has been flushed.
       .then(() => scloud.endTask(req).catch(scloud.dumpError))
       //  Return the response to Sigfox Cloud and terminate the Cloud Function.
       //  Sigfox needs HTTP code 204 to indicate downlink.
-      .then(response => res.status(204).json(response).end())
+      .then(() => res.status(204).json(response).end())
       .then(() => result);
   }
 
@@ -282,43 +288,27 @@ function wrap(/* package_json */) {
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Standard Code for AutoInstall Startup Function.  Do not change.  https://github.com/UnaBiz/sigfox-aws/blob/master/autoinstall.js
 
-/* eslint-disable curly, brace-style, import/no-absolute-path, no-use-before-define */
-exports.main = isAWS ? ((event0, context0, callback0) => {
-  //  exports.main is the AWS Lambda and Google Cloud Function startup function.
-  //  When called by AWS, it loads the autoinstall script from GitHub to install any NPM dependencies.
+/* eslint-disable camelcase,no-unused-vars,import/no-absolute-path,import/no-unresolved,no-use-before-define,global-require,max-len,no-tabs */
+function autoinstall(event, context, callback) {
+  //  When AWS starts our Lambda function, we load the autoinstall script from GitHub to install any NPM dependencies.
   //  For first run, install the dependencies specified in package_json and proceed to next step.
   //  For future runs, just execute the wrapper function with the event, context, callback parameters.
-  //  Returns a promise.
-  if (event0.unittest || __filename.indexOf('/tmp') === 0) {
-    if (!wrapper.main) wrapper = wrap(package_json);  //  Already installed or in unit test.
-    return wrapper.main.bind(wrapper)(event0, context0, callback0); }  //  Run the wrapper.
-  const sourceCode = require('fs').readFileSync(__filename);
-  if (!autoinstallPromise) autoinstallPromise = new Promise((resolve, reject) => {
-    //  Copy autoinstall.js from GitHub to /tmp and load the module.
-    //  TODO: If script already in /tmp, use it.  Else download from GitHub.
-    require('https').get(`https://raw.githubusercontent.com/UnaBiz/sigfox-aws/master/autoinstall.js?random=${Date.now()}`, (res) => {
-      let body = '';
-      res.on('data', (chunk) => { body += chunk; }); // Accumulate the data chunks.
-      res.on('end', () => { //  After downloading from GitHub, save to /tmp amd load the module.
-        require('fs').writeFileSync('/tmp/autoinstall.js', body);
-        return resolve(require('/tmp/autoinstall')); }); })
-      .on('error', (err) => { autoinstallPromise = null; console.error('setupAutoInstall failed', err.message, err.stack); return reject(err); }); });
-  return autoinstallPromise
-    .then(mod => mod.install(package_json, event0, context0, callback0, sourceCode))
-    .catch((error) => { throw error; });
-})// When exports.main is called by Google Cloud, we create
-  //  a wrapper and pass 1 or 2 parameters depending on the
-  //  launch mode: HTTP Mode or PubSub Queue Mode.
-  //  Google Cloud handles the callback differently when we ask for different number of parameters.
-  : ((process.env.FUNCTION_TRIGGER_TYPE === 'HTTP_TRIGGER')
-  ? ((req0, res0) => //  HTTP request. Create a new wrapper if empty.
-    Object.assign(wrapper, wrapper.main ? null : wrap())
-      .main.bind(wrapper)(req0, res0))  //  Run the HTTP wrapper.
-  : (event0 =>  //  PubSub or File request. Create a new wrapper if empty.
-    Object.assign(wrapper, wrapper.main ? null : wrap())
-      .main.bind(wrapper)(event0))  //  Run the PubSub wrapper.
-); /* eslint-enable curly, brace-style, import/no-absolute-path, no-use-before-define */
-let wrapper = {};  //  The single reused wrapper instance (initially empty) for invoking the module functions.
-let autoinstallPromise = null;  //  Holds a cached autoinstall module for reuse.
+  const afterExec = error => error ? callback(error, 'AutoInstall Failed')
+    : require('/tmp/autoinstall').installAndRunWrapper(event, context, callback,
+      package_json, __filename, wrapper, wrap);
+  if (require('fs').existsSync('/tmp/autoinstall.js')) return afterExec(null);  //  Already downloaded.
+  const cmd = 'curl -s -S -o /tmp/autoinstall.js https://raw.githubusercontent.com/UnaBiz/sigfox-aws/master/autoinstall.js';
+  const child = require('child_process').exec(cmd, { maxBuffer: 1024 * 500 }, afterExec);
+  child.stdout.on('data', console.log); child.stderr.on('data', console.error);
+  return null;
+}
+const wrapper = {};  //  The single reused wrapper instance (initially empty) for invoking the module functions.
+if (isAWS) exports.main = autoinstall; //  exports.main is the AWS Lambda and Google Cloud Function startup function.
+else {  //  For Google Cloud, select the 2-para or 1-para version of main() depending on the call mode: HTTP or PubSub Queue.
+  if (!wrapper.main) Object.assign(wrapper, wrap(package_json));
+  const mainFunc = wrapper.main.bind(wrapper);
+  if (process.env.FUNCTION_TRIGGER_TYPE === 'HTTP_TRIGGER') exports.main = (req0, res0) => mainFunc(req0, res0);
+  else exports.main = event0 => mainFunc(event0);
+}
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
