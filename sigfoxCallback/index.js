@@ -303,12 +303,7 @@ function autoinstall(event, context, callback) {
   return null;
 }
 const wrapper = {};  //  The single reused wrapper instance (initially empty) for invoking the module functions.
-if (isAWS) exports.main = autoinstall; //  exports.main is the AWS Lambda and Google Cloud Function startup function.
-else {  //  For Google Cloud, select the 2-para or 1-para version of main() depending on the call mode: HTTP or PubSub Queue.
-  if (!wrapper.main) Object.assign(wrapper, wrap(package_json));
-  const mainFunc = wrapper.main.bind(wrapper);
-  if (process.env.FUNCTION_TRIGGER_TYPE === 'HTTP_TRIGGER') exports.main = (req0, res0) => mainFunc(req0, res0);
-  else exports.main = event0 => mainFunc(event0);
-}
+exports.main = isAWS ? autoinstall  //  exports.main is the AWS Lambda and Google Cloud Function startup function.
+  : require('sigfox-gcloud/lib/main').getMainFunction(wrapper, wrap, package_json);
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
