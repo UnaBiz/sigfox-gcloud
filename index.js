@@ -279,6 +279,7 @@ function writeLog(req, loggingLog0, flush) {
   //  Execute each log task one tick at a time, so it doesn't take too much resources.
   //  If flush is true, flush all logs without waiting for the tick, i.e. when quitting.
   //  Returns a promise.
+  console.log(`writeLog1 ${taskCount} / ${logTasks.length}`);
   const size = batchSize(flush);
   if (logTasks.length === 0) return Promise.resolve('OK');
   //  If not flushing, wait till we got sufficient records to form a batch.
@@ -296,18 +297,22 @@ function writeLog(req, loggingLog0, flush) {
     batch.push(task(cloud.getLogger()).catch(dumpNullError));
     taskCount += 1;
   }
-  // console.log(`______ ${taskCount} / ${batch.length} / ${logTasks.length}`);
+  console.log(`writeLog2 ${taskCount} / ${batch.length} / ${logTasks.length}`);
   //  Wait for the batch to finish.
   return Promise.all(batch)
     .then((res) => {
       //  Write the non-null records.
+      console.log(`writeLog3 ${taskCount} / ${batch.length} / ${logTasks.length}`);
       const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return 'nothing';
       return cloud.getLogger().write(entries)
         .catch(error => console.error('writeLog', error.message, error.stack, JSON.stringify(entries, null, 2)));
     })
     .then(() => {  //  If flushing, don't wait for the tick.
+      console.log(`writeLog4 ${taskCount} / ${batch.length} / ${logTasks.length}`);
       if (flush) {
+        //  Continue flushing till empty.
+        if (logTasks.length === 0) return 'OK';
         return writeLog(req, cloud.getLogger(), flush).catch(dumpError);
       }
       // eslint-disable-next-line no-use-before-define
