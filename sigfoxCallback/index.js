@@ -111,7 +111,7 @@ function wrap(/* package_json */) {
       queues.push({ device: null, type: null });  //  (null,null) means "sigfox.received"
     }
     //  Get a list of promises, one for each publish operation to each queue.
-    const promises = [];
+    let promises = Promise.resolve('start');
     for (const queue of queues) {
       //  Send message to each queue, either the device ID or message type queue.
       const promise = scloud.publishMessage(req, message, queue.device, queue.type)
@@ -119,11 +119,11 @@ function wrap(/* package_json */) {
           scloud.log(req, 'saveMessage', { error, device, type, body, rootTraceId });
           return error;  //  Suppress the error so other sends can proceed.
         });
-      promises.push(promise);
+      promises = promises.then(() => promise);
     }
     //  Wait for the messages to be published to the queues.
-    return Promise.all(promises)
-    //  Return the message with dispatch flag set so we don't resend.
+    return promises
+      //  Return the message with dispatch flag set so we don't resend.
       .then(() => scloud.log(req, 'saveMessage', { result: message, device, type, body, rootTraceId }))
       .then(() => Object.assign({}, message, { isDispatched: true }))
       .catch((error) => { throw error; });
