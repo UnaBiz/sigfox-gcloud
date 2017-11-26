@@ -243,7 +243,7 @@ function wrap(/* package_json */) {
     req.starttime = Date.now();
     //  Start a root-level span to trace the request across Cloud Functions.
     const rootTrace = scloud.startRootSpan(req).rootTrace;
-    const rootTraceId = rootTrace.traceId;  //  Pass to other Cloud Functions.
+    const rootTraceId = rootTrace ? rootTrace.traceId : null;  //  Pass to other Cloud Functions.
     req.rootTraceId = rootTraceId;
 
     const event = null;
