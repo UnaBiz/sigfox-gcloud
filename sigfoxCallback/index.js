@@ -23,10 +23,13 @@ const package_json = /* eslint-disable quote-props,quotes,comma-dangle,indent */
 //  This code is critical, all changes must be reviewed.  It must be
 //  kept as simple as possible to reduce the chance of failure.
 
+//  //////////////////////////////////////////////////////////////////////////////////// endregion
+//  region Common Declarations
+
 //  Helper constants to detect if we are running on Google Cloud or AWS.
 const isGoogleCloud = !!process.env.FUNCTION_NAME || !!process.env.GAE_SERVICE;
-const isAWS = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
-// const isProduction = (process.env.NODE_ENV === 'production');  //  True on production server.
+const isAWS = !!process.env.AWS_LAMBDA_FUNCTION_NAME; // eslint-disable-next-line no-unused-vars
+const isProduction = (process.env.NODE_ENV === 'production');  //  True on production server.
 
 process.on('uncaughtException', err => console.error('uncaughtException', err.message, err.stack));  //  Display uncaught exceptions.
 process.on('unhandledRejection', (reason, p) => console.error('unhandledRejection', reason, p));
@@ -37,7 +40,7 @@ if (isGoogleCloud) {  //  Start agents for Google Cloud.
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region Portable Code for Google Cloud and AWS
+//  region Message Processing Code
 
 function wrap(/* package_json */) {
   //  Wrap the module into a function so that all we defer loading of dependencies,
@@ -278,15 +281,13 @@ function wrap(/* package_json */) {
       .then(() => updatedMessage);
   }
 
-  return {
-    //  Expose these functions outside of the wrapper.
-    //  "main" is called to execute the wrapped function when the dependencies and wrapper have been loaded.
-    main,
-  };
+  //  Expose these functions outside of the wrapper.  main() is called to execute
+  //  the wrapped function when the dependencies and wrapper have been loaded.
+  return { main };
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
-//  region Standard Code for AutoInstall Startup Function.  Do not change.  https://github.com/UnaBiz/sigfox-aws/blob/master/autoinstall.js
+//  region Standard Code for AutoInstall Startup Function.  Do not modify.  https://github.com/UnaBiz/sigfox-aws/blob/master/autoinstall.js
 
 /* eslint-disable camelcase,no-unused-vars,import/no-absolute-path,import/no-unresolved,no-use-before-define,global-require,max-len,no-tabs */
 function autoinstall(event, context, callback) {
