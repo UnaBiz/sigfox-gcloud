@@ -120,8 +120,8 @@ function startRootSpan(req, rootTrace0) {
   const rootTrace = rootTrace0 || cloud.startTrace(req);
   //  Start the span.
   const rootSpanName = getSpanName(req);
-  const rootSpan = rootTrace.startSpan(rootSpanName, labels);
-  rootSpan.end = rootTrace.end.bind(rootTrace);
+  const rootSpan = rootTrace ? rootTrace.startSpan(rootSpanName, labels) : null;
+  if (rootSpan && rootTrace) rootSpan.end = rootTrace.end.bind(rootTrace);
   //  Cache the root trace and span in the request object.
   Object.assign(req, {
     rootTracePromise: Promise.resolve(rootTrace),
@@ -150,7 +150,7 @@ function getRootSpan(req, rootTraceId0) {
     //  Randomly assign the starting span ID.  Must not clash with previously assigned span ID
     //  for this trace ID.
     //  eslint-disable-next-line no-underscore-dangle
-    rootTrace._spanIdInc = parseInt(Math.random() * 1000000, 10);
+    if (rootTrace) rootTrace._spanIdInc = parseInt(Math.random() * 1000000, 10);
     //  Create a span from the trace.  Will be cached in request.
     startRootSpan(req, rootTrace);
   }
