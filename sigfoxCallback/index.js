@@ -3,10 +3,10 @@
 //  region AWS AutoInstall: List all dependencies here, or just paste the contents of package.json. Autoinstall will install these dependencies.
 const package_json = /* eslint-disable quote-props,quotes,comma-dangle,indent */
 //  PASTE PACKAGE.JSON BELOW  //////////////////////////////////////////////////////////
-    { "dependencies": {
-      "dnscache": "^1.0.1",
-      "sigfox-aws": ">=1.0.9",
-      "uuid": "^3.1.0" } }
+{ "dependencies": {
+  "dnscache": "^1.0.1",
+  "sigfox-aws": ">=1.0.9",
+  "uuid": "^3.1.0" } }
 //  PASTE PACKAGE.JSON ABOVE  //////////////////////////////////////////////////////////
 ; /* eslint-enable quote-props,quotes,comma-dangle,indent */
 
@@ -289,22 +289,21 @@ function wrap(/* package_json */) {
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Standard Code for AutoInstall Startup Function.  Do not modify.  https://github.com/UnaBiz/sigfox-aws/blob/master/autoinstall.js
 
-/* eslint-disable camelcase,no-unused-vars,import/no-absolute-path,import/no-unresolved,no-use-before-define,global-require,max-len,no-tabs */
-function autoinstall(event, context, callback) {
-  //  When AWS starts our Lambda function, we load the autoinstall script from GitHub to install any NPM dependencies.
-  //  For first run, install the dependencies specified in package_json and proceed to next step.
-  //  For future runs, just execute the wrapper function with the event, context, callback parameters.
-  const afterExec = error => error ? callback(error, 'AutoInstall Failed')
-    : require('/tmp/autoinstall').installAndRunWrapper(event, context, callback,
-      package_json, __filename, wrapper, wrap);
-  if (require('fs').existsSync('/tmp/autoinstall.js')) return afterExec(null);  //  Already downloaded.
-  const cmd = 'curl -s -S -o /tmp/autoinstall.js https://raw.githubusercontent.com/UnaBiz/sigfox-aws/master/autoinstall.js';
-  const child = require('child_process').exec(cmd, { maxBuffer: 1024 * 500 }, afterExec);
-  child.stdout.on('data', console.log); child.stderr.on('data', console.error);
-  return null;
-}
+/* eslint-disable camelcase,no-unused-vars,import/no-absolute-path,import/no-unresolved,no-use-before-define,global-require,max-len,no-tabs,brace-style */
+//  exports.main is the startup function for AWS Lambda and Google Cloud Function.
+exports.main = isGoogleCloud ? require('sigfox-gcloud/lib/main').getMainFunction(wrapper, wrap, package_json)
+  : (event, context, callback) => {
+    //  When AWS starts our Lambda function, we load the autoinstall script from GitHub to install any NPM dependencies.
+    //  For first run, install the dependencies specified in package_json and proceed to next step.
+    //  For future runs, just execute the wrapper function with the event, context, callback parameters.
+    const afterExec = error => error ? callback(error, 'AutoInstall Failed')
+      : require('/tmp/autoinstall').installAndRunWrapper(event, context, callback,
+        package_json, __filename, wrapper, wrap);
+    if (require('fs').existsSync('/tmp/autoinstall.js')) return afterExec(null);  //  Already downloaded.
+    const cmd = 'curl -s -S -o /tmp/autoinstall.js https://raw.githubusercontent.com/UnaBiz/sigfox-aws/master/autoinstall.js';
+    const child = require('child_process').exec(cmd, { maxBuffer: 1024 * 500 }, afterExec);
+    child.stdout.on('data', console.log); child.stderr.on('data', console.error);
+    return null; };
 const wrapper = {};  //  The single reused wrapper instance (initially empty) for invoking the module functions.
-exports.main = isAWS ? autoinstall  //  exports.main is the AWS Lambda and Google Cloud Function startup function.
-  : require('sigfox-gcloud/lib/main').getMainFunction(wrapper, wrap, package_json);
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
