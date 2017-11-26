@@ -305,8 +305,9 @@ function writeLog(req, loggingLog0, flush) {
       console.log(`writeLog3 ${taskCount} / ${batch.length} / ${logTasks.length}`);
       const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return 'nothing';
-      return cloud.getLogger().write(entries)
+      cloud.getLogger().write(entries)
         .catch(error => console.error('writeLog', error.message, error.stack, JSON.stringify(entries, null, 2)));
+      return 'OK'; //
     })
     .then(() => {  //  If flushing, don't wait for the tick.
       console.log(`writeLog4 ${taskCount} / ${batch.length} / ${logTasks.length}`);
