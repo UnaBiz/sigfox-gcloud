@@ -5,7 +5,7 @@ const package_json = /* eslint-disable quote-props,quotes,comma-dangle,indent */
 //  PASTE PACKAGE.JSON BELOW  //////////////////////////////////////////////////////////
 { "dependencies": {
   "dnscache": "^1.0.1",
-  "sigfox-aws": ">=1.0.9",
+  "sigfox-aws": ">=1.0.10",
   "uuid": "^3.1.0" } }
 //  PASTE PACKAGE.JSON ABOVE  //////////////////////////////////////////////////////////
 ; /* eslint-enable quote-props,quotes,comma-dangle,indent */
