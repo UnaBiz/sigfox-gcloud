@@ -290,9 +290,9 @@ function wrap(/* package_json */) {
 //  region Standard Code for AutoInstall Startup Function.  Do not modify.  https://github.com/UnaBiz/sigfox-aws/blob/master/autoinstall.js
 
 /* eslint-disable camelcase,no-unused-vars,import/no-absolute-path,import/no-unresolved,no-use-before-define,global-require,max-len,no-tabs,brace-style */
-//  exports.main is the startup function for AWS Lambda and Google Cloud Function.
+const wrapper = {};  //  The single reused wrapper instance (initially empty) for invoking the module functions.
 exports.main = isGoogleCloud ? require('sigfox-gcloud/lib/main').getMainFunction(wrapper, wrap, package_json)
-  : (event, context, callback) => {
+  : (event, context, callback) => { //  exports.main is the startup function for AWS Lambda and Google Cloud Function.
     //  When AWS starts our Lambda function, we load the autoinstall script from GitHub to install any NPM dependencies.
     //  For first run, install the dependencies specified in package_json and proceed to next step.
     //  For future runs, just execute the wrapper function with the event, context, callback parameters.
@@ -304,6 +304,5 @@ exports.main = isGoogleCloud ? require('sigfox-gcloud/lib/main').getMainFunction
     const child = require('child_process').exec(cmd, { maxBuffer: 1024 * 500 }, afterExec);
     child.stdout.on('data', console.log); child.stderr.on('data', console.error);
     return null; };
-const wrapper = {};  //  The single reused wrapper instance (initially empty) for invoking the module functions.
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
