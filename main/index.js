@@ -9,14 +9,13 @@ const dotenv = require('dotenv');
 dotenv.load();
 
 const isGoogleCloud = !!process.env.FUNCTION_NAME || !!process.env.GAE_SERVICE;
-const scloud = isGoogleCloud ? require('sigfox-gcloud') : null;
-
 if (isGoogleCloud) {  //  Start agents for Google Cloud.
   // eslint-disable-next-line import/no-extraneous-dependencies
   if (!process.env.DISABLE_DNSCACHE) require('dnscache')({ enable: true });  //  Enable DNS cache in case we hit the DNS quota for Google Cloud Functions.
   if (!process.env.DISABLE_TRACE) require('@google-cloud/trace-agent').start();  //  Must enable Google Cloud Tracing before other require()
   if (!process.env.DISABLE_DEBUG) require('@google-cloud/debug-agent').start();  //  Must enable Google Cloud Debug before other require()
 }
+const scloud = isGoogleCloud ? require('sigfox-gcloud') : null;
 
 function getMainFunction(wrapper, wrap, package_json) {
   //  For Google Cloud, select the 2-para or 1-para version of main()
