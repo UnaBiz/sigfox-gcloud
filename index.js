@@ -128,6 +128,15 @@ function init(para1, para2) {
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Module Exports
 
+let metadataModule = null;
+
+function getMetadataModule() {
+  //  Create google-metadata module on demand.  Because google-metadata requires googleapis.
+  console.log(metadataModule ? 'reuse metadata module' : 'created metadata module');
+  if (!metadataModule) metadataModule = require('./lib/google-metadata');
+  return metadataModule;
+}
+
 //  Here are the functions specific to Google Cloud.  We will expose the sigfox-iot-cloud interface which is common to Google Cloud and AWS.
 const cloud = {
   isGoogleCloud,
@@ -148,6 +157,11 @@ const cloud = {
 
   //  Messaging
   getQueue,
+
+  //  Metadata
+  authorizeMetadata: (req, scopes) => getMetadataModule().authorizeMetadata(req, scopes),
+  getMetadata: (req, authClient) => getMetadataModule().getMetadata(req, authClient),
+  convertMetadata: (req, metadata) => getMetadataModule().convertMetadata(req, metadata),
 
   //  Device State: Not implemented yet for Google Cloud.  Will probably be based on Google Cloud IoT.
   createDevice: (/* req, device */) => Promise.resolve({}),
