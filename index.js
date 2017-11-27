@@ -60,7 +60,7 @@ function getLogger() {
   if (!loggingLog) { // eslint-disable-next-line global-require
     loggingLog = require('@google-cloud/logging')(credentials)
       .log(logName, { removeCircular: true }); //  Mark circular refs by [Circular]
-    console.log('created_logger');
+    // console.log('created_logger');
   }
   return loggingLog;
 }
@@ -74,7 +74,7 @@ function shutdown(/* req */) {
   //  Clean up any logging connections.  Google Cloud Logger must be disposed
   //  or it will throw errors later.
   loggingLog = null;
-  console.log('disposed_logger');
+  // console.log('disposed_logger');
   return Promise.resolve('OK');
 }
 
