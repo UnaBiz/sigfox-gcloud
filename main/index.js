@@ -1,8 +1,12 @@
 //  Helper for main function
-/* eslint-disable camelcase,import/no-extraneous-dependencies,import/no-unresolved,global-require */
+/* eslint-disable max-len,camelcase,import/no-extraneous-dependencies,import/no-unresolved,global-require */
 
 process.on('uncaughtException', err => console.error('uncaughtException', err.message, err.stack));  //  Display uncaught exceptions.
 process.on('unhandledRejection', (reason, p) => console.error('unhandledRejection', reason, p));  //  Display uncaught promises.
+
+//  Read .env file to set any environment variables.
+const dotenv = require('dotenv');
+dotenv.load();
 
 const isGoogleCloud = !!process.env.FUNCTION_NAME || !!process.env.GAE_SERVICE;
 const scloud = isGoogleCloud ? require('sigfox-gcloud') : null;
