@@ -305,7 +305,9 @@ function writeLog(req, loggingLog0, flush) {
       console.log(`writeLog3 ${taskCount} / ${batch.length} / ${logTasks.length}`);
       const entries = res.filter(x => (x !== null && x !== undefined));
       if (entries.length === 0) return 'nothing';
-      cloud.getLogger().write(entries)
+      //  Rightfully for Google Cloud we should wait for this promise to complete, but it introduces a 1-second delay.
+      //  However we will deallocate the logger in shutdown() so it's OK.  No issue for AWS since we log to console.
+      cloud.getLogger().write(entries)  //  Async
         .catch(error => console.error('writeLog', error.message, error.stack, JSON.stringify(entries, null, 2)));
       return 'OK'; //
     })
