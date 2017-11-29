@@ -169,7 +169,6 @@ const cloud = {
   //  Metadata
   authorizeMetadata: (req, scopes) => getMetadataModule().authorizeMetadata(req, scopes),
   getMetadata: (req, authClient) => getMetadataModule().getMetadata(req, authClient),
-  convertMetadata: (req, metadata) => getMetadataModule().convertMetadata(req, metadata),
 
   //  Device State: Not implemented yet for Google Cloud.  Will probably be based on Google Cloud IoT.
   createDevice: (/* req, device */) => Promise.resolve({}),
