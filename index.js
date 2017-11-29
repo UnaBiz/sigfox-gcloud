@@ -71,13 +71,13 @@ function reportError(req, err /* action, para */) {
   errorReport.report(err);
 }
 
-function shutdown(/* req, useCallback, error, result */) {
+function shutdown(req, useCallback, error, result) {
   //  Close all cloud connections.  If useCallback is true, return the error or result
-  //  to AWS through the callback.
+  //  to AWS through the callback.  useCallback is normally true except for sigfoxCallback.
   //  Google Cloud Logger must be disposed or it will throw errors later.
   loggingLog = null;
   // console.log('disposed_logger');
-  return Promise.resolve('OK');
+  return Promise.resolve(error || result);
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
