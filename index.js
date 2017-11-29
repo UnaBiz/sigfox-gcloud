@@ -167,8 +167,8 @@ const cloud = {
   getQueue,
 
   //  Metadata
-  authorizeMetadata: (req, scopes) => getMetadataModule().authorizeMetadata(req, scopes),
-  getMetadata: (req, authClient) => getMetadataModule().getMetadata(req, authClient),
+  authorizeFunctionMetadata: (req, scopes) => getMetadataModule().authorizeMetadata(req, scopes),
+  getFunctionMetadata: (req, authClient) => getMetadataModule().getMetadata(req, authClient),
 
   //  Device State: Not implemented yet for Google Cloud.  Will probably be based on Google Cloud IoT.
   createDevice: (/* req, device */) => Promise.resolve({}),
