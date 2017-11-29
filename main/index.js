@@ -1,5 +1,5 @@
 //  Helper for main function
-/* eslint-disable max-len,camelcase,import/no-extraneous-dependencies,import/no-unresolved,global-require */
+/*  eslint-disable max-len,camelcase,import/no-extraneous-dependencies,import/no-unresolved,global-require,import/newline-after-import */
 
 process.on('uncaughtException', err => console.error('uncaughtException', err.message, err.stack));  //  Display uncaught exceptions.
 process.on('unhandledRejection', (reason, p) => console.error('unhandledRejection', reason, p));  //  Display uncaught promises.
@@ -22,14 +22,15 @@ function getMainFunction(wrapper, wrap, package_json) {
   //  depending on the call mode: HTTP or PubSub Queue.
   if (!isGoogleCloud) throw new Error('getMainFunction is for Google Cloud only');
   if (!wrapper || !wrap) throw new Error('Missing wrapper or wrap function');
-  if (!wrapper.main) Object.assign(wrapper, wrap(scloud, package_json));
-  const mainFunc = wrapper.main.bind(wrapper);
+  if (!wrapper.main && !wrapper.task) Object.assign(wrapper, wrap(scloud, package_json));
+  const mainFunc = wrapper.main ? wrapper.main.bind(wrapper) : scloud.main.bind(wrapper);
+  const taskFunc = wrapper.task ? wrapper.task.bind(wrapper) : null;
   if (process.env.FUNCTION_TRIGGER_TYPE === 'HTTP_TRIGGER') {
     //  Return the 2-para main function for HTTP mode.
-    return (req0, res0) => mainFunc(req0, res0);
+    return (req0, res0) => mainFunc(req0, res0, taskFunc);
   }
   //  Else return the 1-para main function for PubSub mode.
-  return event0 => mainFunc(event0);
+  return event0 => mainFunc(event0, taskFunc);
 }
 
 module.exports = {
