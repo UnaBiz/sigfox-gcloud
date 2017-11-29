@@ -18,6 +18,9 @@ if (isGoogleCloud) {  //  Start agents for Google Cloud.
 const scloud = isGoogleCloud ? require('sigfox-gcloud') : null;
 
 function getMainFunction(wrapper, wrap, package_json) {
+  //  Return the Google Cloud startup function main(), if defined in the wrap() function.
+  //  If the wrap() function defines task(), return the main() function
+  //  from sigfox-iot-cloud, after passing task() to main().
   //  For Google Cloud, select the 2-para or 1-para version of main()
   //  depending on the call mode: HTTP or PubSub Queue.
   if (!isGoogleCloud) throw new Error('getMainFunction is for Google Cloud only');
