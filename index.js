@@ -1,3 +1,4 @@
+//  region Introduction
 //  sigfox-gcloud is a framework for building a Sigfox server, based
 //  on Google Cloud Functions.  This module contains the framework functions
 //  used by sigfox-gcloud Cloud Functions.  They should also work with Linux, MacOS
@@ -104,7 +105,7 @@ function getQueue(req, projectId0, topicName) {
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Startup
 
-function init(para1, para2) {
+function init(para1, para2, para3) {
   //  Run the function in the wrapper, passed as "this".
   //  Call the callback upon success or failure.
   //  Returns a promise.  The number of parameters depend on
@@ -116,13 +117,19 @@ function init(para1, para2) {
     //  HTTP Function: (para1,para2) = (req,res)
     const req = Object.assign({}, para1);  //  Shallow clone the request.
     const res = para2;
+    const task = para3;
     req.res = res;  //  Save the response object in the request for easy reference.
-    return { req, res };
+    const result = { req, res };
+    if (task) result.task = task;
+    return result;
   }
   //  Else it will be PubSub Queue Mode: para1=event.
   //  Decode the body.
-  //  TODO: const event = para1;
-  return {};
+  const event = para1;
+  const task = para2;
+  const result = { event };
+  if (task) result.task = task;
+  return result;
 }
 
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
