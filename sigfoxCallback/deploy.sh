@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 name=sigfoxCallback
 trigger=--trigger-http
