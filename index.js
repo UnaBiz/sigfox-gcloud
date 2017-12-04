@@ -15,6 +15,9 @@ const functionName = process.env.FUNCTION_NAME || 'unknown_function';
 const logName = process.env.LOGNAME || 'sigfox-gcloud';
 const projectId = process.env.GCLOUD_PROJECT;    //  Google Cloud project ID.
 
+process.env.PACKAGE_VERSION = require('./package.json').version;
+console.log({ sigfox_gcloud_version: process.env.PACKAGE_VERSION });
+
 //  This is needed because Node.js doesn't cache DNS lookups and will cause DNS quota to be exceeded in Google Cloud.
 require('dnscache')({ enable: true });
 //  If the file .env exists in the current folder, use it to populate

@@ -33,7 +33,7 @@
     "dotenv": "^4.0.0",
     "gcloud-trace": "^1.3.7",
     "json-stringify-safe": "^5.0.1",
-    "sigfox-iot-cloud": ">=1.0.18"
+    "sigfox-iot-cloud": ">=1.0.24"
   },
   "repository": {
     "type": "git",
