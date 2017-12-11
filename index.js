@@ -56,13 +56,14 @@ function startTrace(/* req */) {
 //  //////////////////////////////////////////////////////////////////////////////////// endregion
 //  region Logging Functions: Log to Google Cloud Logging, Error Reporting and PubSub
 
-let loggingLog = null;
 const errorReport = require('@google-cloud/error-reporting')({ reportUnhandledRejections: true });
+const Logging = require('@google-cloud/logging');
+let loggingLog = null;  //  Instance of the logger.
 
 function getLogger() {
   //  Return the logger object for writing logs.  Create it if necessary.
-  if (!loggingLog) { // eslint-disable-next-line global-require
-    loggingLog = require('@google-cloud/logging')(credentials)
+  if (!loggingLog) {
+    loggingLog = new Logging(credentials)
       .log(logName, { removeCircular: true }); //  Mark circular refs by [Circular]
     // console.log('created_logger');
   }
