@@ -11,7 +11,7 @@
     "node": ">=7.8.0"
   },
   "dependencies": {
-    "sigfox-gcloud": ">=2.0.9",
-    "sigfox-iot-cloud": ">=1.0.28"
+    "sigfox-gcloud": ">=2.0.10",
+    "sigfox-iot-cloud": ">=1.0.29"
   }
 }
