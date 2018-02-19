@@ -55,15 +55,15 @@ function wrap() {
     //  Extend the expiry temporarily so we don't have 2 concurrent requests to fetch the route.
     if (defaultRoute) defaultRouteExpiry = Date.now() + routeExpiry;
     let authClient = null;
-    let metadata = null;
+    // let metadata = null;
     //  Get a Google auth client.
-    return googlemetadata.authorize(req)
+    return googlemetadata.authorizeMetadata(req)
       .then((res) => { authClient = res; })
       //  Get the project metadata.
-      .then(() => googlemetadata.getProjectMetadata(req, authClient))
-      .then((res) => { metadata = res; })
+      .then(() => googlemetadata.getMetadata(req, authClient))
+      //  .then((res) => { metadata = res; })
       //  Convert the metadata to a JavaScript object.
-      .then(() => googlemetadata.convertMetadata(req, metadata))
+      //  .then(() => googlemetadata.convertMetadata(req, metadata))
       //  Return the default route from the metadata.
       .then(metadataObj => metadataObj[defaultRouteKey])
       .then((res) => {
