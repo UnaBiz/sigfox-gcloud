@@ -13,7 +13,7 @@
   "dependencies": {
     "@google-cloud/debug-agent": "^2.3.2",
     "@google-cloud/trace-agent": "^2.4.1",
-    "sigfox-gcloud": ">=2.1.0",
+    "sigfox-gcloud": ">=2.1.1",
     "sigfox-iot-cloud": ">=1.1.0"
   }
 }
