@@ -20,7 +20,7 @@
     "dotenv": "^4.0.0",
     "googleapis": "^22.2.0",
     "sigfox-gcloud": ">=2.1.0",
-    "sigfox-iot-cloud": ">=1.0.29",
+    "sigfox-iot-cloud": ">=1.1.0",
     "safe-buffer": "5.0.1",
     "node-fetch": "^1.6.3",
     "json-stringify-safe": "^5.0.1",
