@@ -1,6 +1,6 @@
 {
   "name": "sigfox-gcloud",
-  "version": "2.0.10",
+  "version": "2.1.0",
   "description": "Framework for building a Sigfox server, based on Google Cloud Functions",
   "main": "index.js",
   "scripts": {
@@ -22,7 +22,7 @@
   },
   "license": "MIT",
   "engines": {
-    "node": ">=7.8.0"
+    "node": ">=8.9.0"
   },
   "dependencies": {
     "@google-cloud/error-reporting": "^0.2.2",
