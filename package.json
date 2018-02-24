@@ -25,7 +25,6 @@
     "node": ">=8.9.0"
   },
   "dependencies": {
-    "@google-cloud/debug-agent": "^2.3.2",
     "@google-cloud/error-reporting": "^0.2.3",
     "@google-cloud/logging": "^1.1.4",
     "@google-cloud/pubsub": "^0.16.4",
